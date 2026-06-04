@@ -32,11 +32,49 @@
 #define strcasestr strstr
 #endif
 
+namespace
+{
+static bool MOTD_IsHtml( const char *text )
+{
+	return text && ( strcasestr( text, "<!DOCTYPE" ) || strcasestr( text, "<html" ) ||
+		strcasestr( text, "<body" ) || strcasestr( text, "<iframe" ) ||
+		strcasestr( text, "<script" ) || strcasestr( text, "<style" ) ||
+		strcasestr( text, "<br" ) || strcasestr( text, "<p" ) ||
+		strcasestr( text, "<font" ) || strcasestr( text, "<pre" ) ||
+		strcasestr( text, "<a " ) );
+}
+
+static void MOTD_GetHtmlWindowRect( int &x, int &y, int &width, int &height )
+{
+	width = ScreenWidth * 64 / 100;
+	height = ScreenHeight * 76 / 100;
+
+	if( width < 320 )
+		width = ScreenWidth - 40;
+	if( height < 220 )
+		height = ScreenHeight - 40;
+
+	if( width > ScreenWidth - 60 )
+		width = ScreenWidth - 60;
+	if( height > ScreenHeight - 80 )
+		height = ScreenHeight - 80;
+
+	x = ( ScreenWidth - width ) / 2;
+	y = ( ScreenHeight - height ) / 2;
+
+	if( x < 30 )
+		x = 30;
+	if( y < 40 )
+		y = 40;
+}
+}
+
 int CHudMOTD :: Init( void )
 {
 	gHUD.AddHudElem( this );
 
 	HOOK_MESSAGE( gHUD.m_MOTD, MOTD );
+	HOOK_COMMAND( gHUD.m_MOTD, "motd_close", Close );
 
 	cl_hide_motd = CVAR_CREATE("cl_hide_motd", "0", FCVAR_ARCHIVE); // hide motd
 	Reset();
@@ -52,11 +90,30 @@ int CHudMOTD :: VidInit( void )
 
 void CHudMOTD :: Reset( void )
 {
+	if( gEngfuncs.pfnHideHtmlMotd )
+		gEngfuncs.pfnHideHtmlMotd();
+
 	m_iFlags &= ~HUD_DRAW;  // start out inactive
 	m_szMOTD.Clear();
 	m_iLines = 0;
 	m_bShow = false;
 	ignoreThisMotd = false;
+	scroll = 0;
+}
+
+void CHudMOTD :: Close( void )
+{
+	Reset();
+}
+
+void CHudMOTD :: UserCmd_Close( void )
+{
+	Close();
+}
+
+bool CHudMOTD :: ActivateLinkAtCursor( void )
+{
+	return false;
 }
 
 #define LINE_HEIGHT  13
@@ -76,6 +133,10 @@ int CHudMOTD :: Draw( float fTime )
 	}
 
 	gHUD.m_iNoConsolePrint |= 1 << 1;
+
+	if( MOTD_IsHtml( m_szMOTD.String() ) && gEngfuncs.pfnShowHtmlMotd )
+		return 1;
+
 	// find the top of where the MOTD should be drawn,  so the whole thing is centered in the screen
 	int ypos = (ScreenHeight - LINE_HEIGHT * m_iLines)/2; // shift it up slightly
 	char *ch = m_szMOTD.Access();
@@ -145,13 +206,6 @@ int CHudMOTD :: MsgFunc_MOTD( const char *pszName, int iSize, void *pbuf )
 	int is_finished = reader.ReadByte();
 	m_szMOTD.Append( reader.ReadString() );
 
-	// we still don't support html tags in motd :(
-	if( strcasestr( m_szMOTD.String(), "<!DOCTYPE HTML>" ) )
-	{
-		Reset();
-		ignoreThisMotd = true;
-	}
-
 	if ( is_finished )
 	{
 		int length = 0;
@@ -181,6 +235,17 @@ int CHudMOTD :: MsgFunc_MOTD( const char *pszName, int iSize, void *pbuf )
 			length = 0;
 		}
 		m_bShow = true;
+
+		if( MOTD_IsHtml( m_szMOTD.String() ) && gEngfuncs.pfnShowHtmlMotd )
+		{
+			int x, y, width, height;
+			MOTD_GetHtmlWindowRect( x, y, width, height );
+
+			if( gEngfuncs.pfnShowHtmlMotd( m_szMOTD.String(), "https://xash-motd.local/", gHUD.m_szServerName, x, y, width, height ) )
+				gEngfuncs.Con_Printf( "MOTD: showing HTML in native WebView\n" );
+			else
+				gEngfuncs.Con_Printf( "MOTD: native WebView unavailable, falling back to HUD renderer\n" );
+		}
 	}
 
 	return 1;

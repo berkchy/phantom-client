@@ -215,6 +215,21 @@ typedef struct ui_extendedfuncs_s {
 	// network address funcs
 	const char *(*pfnAdrToString)( const struct netadr_s a );
 	int (*pfnCompareAdr)( const void *a, const void *b ); // netadr_t
+	void *(*pfnGetNativeObject)( const char *name );
+	struct net_api_s *pNetAPI;
+
+	// new mods info
+	gameinfo2_t *(*pfnGetGameInfo)( int gi_version );
+	gameinfo2_t *(*pfnGetModInfo)( int gi_version, int mod_index );
+
+	// returns 1 if cvar has read-only flag, or -1 if not found
+	int (*pfnIsCvarReadOnly)( const char *name );
+
+	// ImGui functions
+	void (*pfnImGui_DrawText)( int x, int y, int r, int g, int b, int a, const char *text );
+	int  (*pfnImGui_LoadFont)( const char *fontPath, float fontSize );
+	int  (*pfnImGui_GetTextWidth)( const char *text, float fontSize );
+	void (*pfnImGui_SetScreenSize)( int width, int height );
 } ui_extendedfuncs_t;
 
 // deprecated export from old engine

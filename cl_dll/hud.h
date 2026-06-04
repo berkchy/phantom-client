@@ -340,6 +340,9 @@ public:
 	int VidInit( void );
 	int Draw( float flTime );
 	void Reset( void );
+	bool ActivateLinkAtCursor( void );
+	void Close( void );
+	CHudUserCmd(Close);
 
 	CHudMsgFunc(MOTD);
 	void Scroll( int dir );
@@ -370,6 +373,8 @@ public:
 	int DrawScoreboard( float flTime );
 	int DrawTeams( float listslot );
 	int DrawPlayers( float listslot, int nameoffset = 0, const char *team = NULL ); // returns the ypos where it finishes drawing
+	int DrawModernTeamScoreboard( float flTime );
+	int DrawModernTeamPlayers( int teamnumber, int x, int y, int wide, int tall, int nameoffset = 0 );
 
 	void DeathMsg( int killer, int victim );
 	void SetScoreboardDefaults( void );
@@ -401,6 +406,8 @@ private:
 	cvar_t *cl_showpacketloss;
 	cvar_t *cl_showplayerversion;
 	cvar_t *cl_show_scoreboard_on_death;
+	cvar_t *m_pScoreboardBgAlpha;
+	cvar_t *m_pScoreboardRowAlpha;
 };
 
 //
@@ -511,10 +518,14 @@ public:
 	CHudMsgFunc(DeathMsg);
 
 private:
-	int m_HUD_d_skull;  // sprite index of skull icon
-	int m_HUD_d_headshot;
-	cvar_t *hud_deathnotice_time;
-};
+		int m_HUD_d_skull;  // sprite index of skull icon
+		int m_HUD_d_headshot;
+		cvar_t *hud_deathnotice_time;
+		cvar_t *hud_deathnotice_bg_alpha;
+		cvar_t *hud_deathnotice_bg_softness;
+		cvar_t *hud_deathnotice_anim_time;
+		cvar_t *hud_deathnotice_row_gap;
+	};
 
 //
 //-----------------------------------------------------
@@ -572,6 +583,9 @@ private:
 	struct cvar_s *	m_HUD_saytext;
 	struct cvar_s *	m_HUD_saytext_time;
 	struct cvar_s *	m_HUD_saytext_console;
+	struct cvar_s *	m_HUD_saytext_anim_time;
+	struct cvar_s *	m_HUD_saytext_x_offset;
+	struct cvar_s *	m_HUD_saytext_y_offset;
 };
 
 //
@@ -1036,6 +1050,9 @@ public:
 	int		m_iKeyBits;
 	int		m_iHideHUDDisplay;
 	int		m_iFOV;
+	float	m_flZoomTargetFOV;
+	float	m_flZoomStartFOV;
+	float	m_flZoomStartTime;
 	int		m_Teamplay;
 	cvar_t *m_pCvarDraw;
 	cvar_t *fastsprites;
@@ -1151,6 +1168,8 @@ private:
 	cvar_t *hud_draw;
 	cvar_t *default_fov;
 	cvar_t *zoom_sens_ratio;
+	cvar_t *cl_zoom_smooth;
+
 };
 
 extern CHud gHUD;

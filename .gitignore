@@ -64,3 +64,6 @@ release/
 *.tasks
 regamebuild/
 .vs/
+
+# Android keystore (contains private keys)
+android/keystore.jks

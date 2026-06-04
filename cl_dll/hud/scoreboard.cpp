@@ -86,6 +86,92 @@ static struct Column
 	}
 } g_Columns[TOTAL_COLUMNS];
 
+static int Scoreboard_ClampInt( int value, int minValue, int maxValue )
+{
+	if ( value < minValue )
+		return minValue;
+	if ( value > maxValue )
+		return maxValue;
+	return value;
+}
+
+static int Scoreboard_CvarAlpha( cvar_t *cvar, int fallback )
+{
+	if ( !cvar )
+		return fallback;
+
+	return Scoreboard_ClampInt( (int)cvar->value, 0, 255 );
+}
+
+static void Scoreboard_DrawBorder( int x, int y, int wide, int tall, int r, int g, int b, int a )
+{
+	FillRGBA( x + 1,        y,            wide - 1, 1,        r, g, b, a );
+	FillRGBA( x,            y,            1,        tall - 1, r, g, b, a );
+	FillRGBA( x + wide - 1, y + 1,        1,        tall - 1, r, g, b, a );
+	FillRGBA( x,            y + tall - 1, wide - 1, 1,        r, g, b, a );
+}
+
+static void Scoreboard_DrawTextShadow( int x, int y, int maxX, const char *text, int r, int g, int b )
+{
+	DrawUtils::DrawHudString( x + 1, y + 1, maxX, text, 0, 0, 0 );
+	DrawUtils::DrawHudString( x, y, maxX, text, r, g, b );
+}
+
+static void Scoreboard_DrawReverseTextShadow( int x, int y, int minX, const char *text, int r, int g, int b )
+{
+	DrawUtils::DrawHudStringReverse( x + 1, y + 1, minX + 1, text, 0, 0, 0 );
+	DrawUtils::DrawHudStringReverse( x, y, minX, text, r, g, b );
+}
+
+static void Scoreboard_DrawCenteredText( int x, int y, int wide, const char *text, int r, int g, int b )
+{
+	int textWide = DrawUtils::HudStringLen( text );
+	Scoreboard_DrawTextShadow( x + ( wide - textWide ) / 2, y, x + wide, text, r, g, b );
+}
+
+static void Scoreboard_DrawCenteredScaledText( int x, int y, int wide, const char *text, int r, int g, int b, float scale )
+{
+	int textWide = (int)( DrawUtils::HudStringLen( text ) * scale + 0.5f );
+	int drawX = x + ( wide - textWide ) / 2;
+	DrawUtils::DrawHudString( drawX + 1, y + 1, x + wide, text, 0, 0, 0, scale );
+	DrawUtils::DrawHudString( drawX, y, x + wide, text, r, g, b, scale );
+}
+
+static void Scoreboard_DrawSoftPanel( int x, int y, int wide, int tall, int r, int g, int b, int a )
+{
+	if ( wide <= 0 || tall <= 0 )
+		return;
+
+	FillRGBABlend( x, y, wide, tall, r, g, b, a );
+}
+
+struct scoreboard_team_summary_t
+{
+	int players;
+	int frags;
+	int deaths;
+	int ping;
+};
+
+static team_info_t *Scoreboard_FindTeamInfo( int teamnumber )
+{
+	for ( int i = 1; i <= gHUD.m_Scoreboard.m_iNumTeams; i++ )
+	{
+		if ( g_TeamInfo[i].teamnumber == teamnumber )
+			return &g_TeamInfo[i];
+	}
+
+	return NULL;
+}
+
+static void Scoreboard_AddPlayerToSummary( scoreboard_team_summary_t &summary, int player )
+{
+	summary.players++;
+	summary.frags += g_PlayerExtraInfo[player].frags;
+	summary.deaths += g_PlayerExtraInfo[player].deaths;
+	summary.ping += g_PlayerInfoList[player].ping;
+}
+
 //#include "vgui_TeamFortressViewport.h"
 
 int CHudScoreboard :: Init( void )
@@ -107,6 +193,8 @@ int CHudScoreboard :: Init( void )
 	cl_showpacketloss = CVAR_CREATE( "cl_showpacketloss", "0", FCVAR_ARCHIVE );
 	cl_showplayerversion = CVAR_CREATE( "cl_showplayerversion", "0", 0 );
 	cl_show_scoreboard_on_death = CVAR_CREATE( "cl_show_scoreboard_on_death", "0", FCVAR_ARCHIVE );
+	m_pScoreboardBgAlpha = CVAR_CREATE( "hud_scoreboard_bg_alpha", "176", FCVAR_ARCHIVE );
+	m_pScoreboardRowAlpha = CVAR_CREATE( "hud_scoreboard_row_alpha", "34", FCVAR_ARCHIVE );
 
 	return 1;
 }
@@ -173,14 +261,14 @@ int CHudScoreboard :: Draw( float flTime )
 
 	if( !m_bForceDraw )
 	{
-		xstart     = 0.125f * ScreenWidth;
+		xstart     = 0.09f * ScreenWidth;
 		xend       = ScreenWidth - xstart;
-		ystart     = 90;
-		yend       = ScreenHeight - ystart;
+		ystart     = max( 64, (int)( 0.14f * ScreenHeight ) );
+		yend       = ScreenHeight - max( 52, (int)( 0.10f * ScreenHeight ) );
 		m_colors.r = 0;
 		m_colors.g = 0;
 		m_colors.b = 0;
-		m_colors.a = 153;
+		m_colors.a = Scoreboard_CvarAlpha( m_pScoreboardBgAlpha, 176 );
 		m_bDrawStroke = true;
 	}
 
@@ -190,6 +278,8 @@ int CHudScoreboard :: Draw( float flTime )
 int CHudScoreboard :: DrawScoreboard( float fTime )
 {
 	GetAllPlayersInfo();
+	return DrawModernTeamScoreboard( fTime );
+
 	char ServerName[90];
 
 //	Packetloss removed on Kelly 'shipping nazi' Bailey's orders
@@ -221,32 +311,51 @@ int CHudScoreboard :: DrawScoreboard( float fTime )
 	g_Columns[COL_ATTRIB] = Column( g_Columns[COL_HP].end - 10 );
 	g_Columns[COL_ATTRIB].end = g_Columns[COL_ATTRIB].start - DrawUtils::HudStringLen( "#Cstrike_DEFUSE_KIT" );
 
-	g_Columns[COL_NAME] = Column( xstart + 15, nullptr, false );
+	const int pad = max( XRES( 10 ), 8 );
+	const int boardWide = xend - xstart;
+	const int boardTall = yend - ystart;
+	const int accentR = 255;
+	const int accentG = 180;
+	const int accentB = 32;
+
+	g_Columns[COL_NAME] = Column( xstart + pad + XRES( 4 ), nullptr, false );
 	g_Columns[COL_NAME].end = g_Columns[COL_ATTRIB].end - 10;
 
 	// print the heading line
 
-	DrawUtils::DrawRectangle(xstart, ystart, xend - xstart, yend - ystart,
-		m_colors.r, m_colors.g, m_colors.b, m_colors.a, m_bDrawStroke);
+	FillRGBABlend( xstart, ystart, boardWide, boardTall,
+		m_colors.r, m_colors.g, m_colors.b, m_colors.a );
 
-	int ypos = ystart + (list_slot * ROW_GAP) + 5;
+	FillRGBABlend( xstart + 1, ystart + 1, boardWide - 2, ROW_GAP + 13,
+		18, 15, 10, min( m_colors.a + 24, 210 ) );
+
+	if ( m_bDrawStroke )
+	{
+		Scoreboard_DrawBorder( xstart, ystart, boardWide, boardTall, accentR, accentG, accentB, 220 );
+		Scoreboard_DrawBorder( xstart + 3, ystart + 3, boardWide - 6, boardTall - 6, accentR, accentG, accentB, 82 );
+	}
+
+	int ypos = ystart + (list_slot * ROW_GAP) + 6;
 
 	if( gHUD.m_szServerName[0] )
 		// snprintf( ServerName, 80, "%s", (char*)(gHUD.m_Teamplay ? "TEAMS" : "PLAYERS"), gHUD.m_szServerName );
 		strncpy( ServerName, gHUD.m_szServerName, 80 );
 	else
 		strncpy( ServerName, gHUD.m_Teamplay ? "TEAMS" : "PLAYERS", 80 );
+	ServerName[sizeof( ServerName ) - 1] = 0;
 
-	DrawUtils::DrawHudString( g_Columns[COL_NAME].start, ypos, g_Columns[COL_NAME].end, ServerName, 255, 140, 0 );
-	DrawUtils::DrawHudStringReverse( g_Columns[COL_HP].start, ypos, g_Columns[COL_HP].end, g_Columns[COL_HP].name, 255, 140, 0 );
-	DrawUtils::DrawHudStringReverse( g_Columns[COL_MONEY].start, ypos, g_Columns[COL_MONEY].end, g_Columns[COL_MONEY].name, 255, 140, 0 );
-	DrawUtils::DrawHudStringReverse( g_Columns[COL_KILLS].start, ypos, g_Columns[COL_KILLS].end, g_Columns[COL_KILLS].name, 255, 140, 0 );
-	DrawUtils::DrawHudStringReverse( g_Columns[COL_DEATHS].start, ypos, g_Columns[COL_DEATHS].end, g_Columns[COL_DEATHS].name, 255, 140, 0 );
-	DrawUtils::DrawHudStringReverse( g_Columns[COL_PING].start, ypos, g_Columns[COL_PING].end, g_Columns[COL_PING].name, 255, 140, 0 );
+	Scoreboard_DrawTextShadow( g_Columns[COL_NAME].start, ypos, g_Columns[COL_NAME].end, ServerName, accentR, accentG, accentB );
 
 	list_slot += 2;
 	ypos = ystart + (list_slot * ROW_GAP);
-	FillRGBA( xstart, ypos, xend - xstart, 1, 255, 140, 0, 255);  // draw the separator line
+	FillRGBABlend( xstart + pad, ypos - 3, boardWide - pad * 2, ROW_GAP + 4, 0, 0, 0, 70 );
+	FillRGBA( xstart + pad, ypos - 4, boardWide - pad * 2, 1, accentR, accentG, accentB, 200 );
+
+	Scoreboard_DrawReverseTextShadow( g_Columns[COL_HP].start, ypos, g_Columns[COL_HP].end, g_Columns[COL_HP].name, accentR, accentG, accentB );
+	Scoreboard_DrawReverseTextShadow( g_Columns[COL_MONEY].start, ypos, g_Columns[COL_MONEY].end, g_Columns[COL_MONEY].name, accentR, accentG, accentB );
+	Scoreboard_DrawReverseTextShadow( g_Columns[COL_KILLS].start, ypos, g_Columns[COL_KILLS].end, g_Columns[COL_KILLS].name, accentR, accentG, accentB );
+	Scoreboard_DrawReverseTextShadow( g_Columns[COL_DEATHS].start, ypos, g_Columns[COL_DEATHS].end, g_Columns[COL_DEATHS].name, accentR, accentG, accentB );
+	Scoreboard_DrawReverseTextShadow( g_Columns[COL_PING].start, ypos, g_Columns[COL_PING].end, g_Columns[COL_PING].name, accentR, accentG, accentB );
 
 	list_slot += 0.8;
 
@@ -259,6 +368,199 @@ int CHudScoreboard :: DrawScoreboard( float fTime )
 		// it's not teamplay,  so just draw a simple player list
 		DrawPlayers( list_slot );
 	}
+	return 1;
+}
+
+static bool Scoreboard_PlayerMatchesTeam( int player, int teamnumber )
+{
+	int playerTeam = g_PlayerExtraInfo[player].teamnumber;
+
+	if ( teamnumber == TEAM_SPECTATOR )
+		return playerTeam == TEAM_SPECTATOR || playerTeam == TEAM_UNASSIGNED || !stricmp( g_PlayerExtraInfo[player].teamname, "SPECTATOR" );
+
+	return playerTeam == teamnumber;
+}
+
+int CHudScoreboard :: DrawModernTeamPlayers( int teamnumber, int x, int y, int wide, int tall, int nameoffset )
+{
+	bool drawn[MAX_PLAYERS + 1];
+	memset( drawn, 0, sizeof( drawn ) );
+
+	const int pad = max( XRES( 8 ), 8 );
+	const int rowAlpha = Scoreboard_CvarAlpha( m_pScoreboardRowAlpha, 34 );
+	const int rowTop = y + YRES( 24 );
+	const int rowBottom = y + tall - YRES( 8 );
+	int row = 0;
+
+	if ( teamnumber != TEAM_SPECTATOR )
+	{
+		Scoreboard_DrawTextShadow( x + pad + nameoffset, y + YRES( 8 ), x + wide, "Name", 190, 190, 190 );
+		Scoreboard_DrawReverseTextShadow( x + wide - pad - XRES( 78 ), y + YRES( 8 ), x, "K", 190, 190, 190 );
+		Scoreboard_DrawReverseTextShadow( x + wide - pad - XRES( 43 ), y + YRES( 8 ), x, "D", 190, 190, 190 );
+		Scoreboard_DrawReverseTextShadow( x + wide - pad, y + YRES( 8 ), x, "Ping", 190, 190, 190 );
+	}
+	else
+	{
+		Scoreboard_DrawTextShadow( x + pad + nameoffset, y + YRES( 8 ), x + wide, "Name", 190, 190, 190 );
+		Scoreboard_DrawReverseTextShadow( x + wide - pad, y + YRES( 8 ), x, "Ping", 190, 190, 190 );
+	}
+
+	while ( rowTop + row * ROW_GAP + ROW_GAP <= rowBottom )
+	{
+		int bestPlayer = 0;
+		int highestFrags = -99999;
+		int lowestDeaths = 99999;
+
+		for ( int i = 1; i <= MAX_PLAYERS; i++ )
+		{
+			if ( drawn[i] || !g_PlayerInfoList[i].name || !g_PlayerInfoList[i].name[0] )
+				continue;
+
+			if ( !Scoreboard_PlayerMatchesTeam( i, teamnumber ) )
+				continue;
+
+			if ( g_PlayerExtraInfo[i].frags > highestFrags ||
+				( g_PlayerExtraInfo[i].frags == highestFrags && g_PlayerExtraInfo[i].deaths < lowestDeaths ) )
+			{
+				bestPlayer = i;
+				highestFrags = g_PlayerExtraInfo[i].frags;
+				lowestDeaths = g_PlayerExtraInfo[i].deaths;
+			}
+		}
+
+		if ( !bestPlayer )
+			break;
+
+		drawn[bestPlayer] = true;
+
+		int ypos = rowTop + row * ROW_GAP;
+		if ( row % 2 == 0 )
+			FillRGBABlend( x + pad / 2, ypos - 2, wide - pad, ROW_GAP + 2, 255, 255, 255, rowAlpha );
+		else
+			FillRGBABlend( x + pad / 2, ypos - 2, wide - pad, ROW_GAP + 2, 0, 0, 0, rowAlpha / 2 );
+
+		if ( g_PlayerInfoList[bestPlayer].thisplayer )
+			FillRGBABlend( x + pad / 2, ypos - 2, wide - pad, ROW_GAP + 2, 255, 180, 32, 54 );
+
+		int r = 255, g = 255, b = 255;
+		float *colors = GetClientColor( bestPlayer );
+		r *= colors[0];
+		g *= colors[1];
+		b *= colors[2];
+
+		Scoreboard_DrawTextShadow( x + pad + nameoffset, ypos, x + wide - XRES( 110 ), g_PlayerInfoList[bestPlayer].name, r, g, b );
+
+		if ( teamnumber != TEAM_SPECTATOR )
+		{
+			DrawUtils::DrawHudNumberString( x + wide - pad - XRES( 78 ), ypos, x, g_PlayerExtraInfo[bestPlayer].frags, r, g, b );
+			DrawUtils::DrawHudNumberString( x + wide - pad - XRES( 43 ), ypos, x, g_PlayerExtraInfo[bestPlayer].deaths, r, g, b );
+		}
+
+		static char pingBuf[16];
+		const char *value;
+		if( g_PlayerInfoList[bestPlayer].ping <= 5 &&
+			( value = gEngfuncs.PlayerInfo_ValueForKey( bestPlayer, "*bot" ) ) &&
+			atoi( value ) > 0 )
+		{
+			Scoreboard_DrawReverseTextShadow( x + wide - pad, ypos, x, "BOT", r, g, b );
+		}
+		else
+		{
+			sprintf( pingBuf, "%d", g_PlayerInfoList[bestPlayer].ping );
+			Scoreboard_DrawReverseTextShadow( x + wide - pad, ypos, x, pingBuf, r, g, b );
+		}
+
+		row++;
+	}
+
+	return 1;
+}
+
+int CHudScoreboard :: DrawModernTeamScoreboard( float flTime )
+{
+	(void)flTime;
+
+	scoreboard_team_summary_t ct = {};
+	scoreboard_team_summary_t tr = {};
+	scoreboard_team_summary_t spec = {};
+
+	for ( int i = 1; i <= MAX_PLAYERS; i++ )
+	{
+		if ( !g_PlayerInfoList[i].name || !g_PlayerInfoList[i].name[0] )
+			continue;
+
+		if ( Scoreboard_PlayerMatchesTeam( i, TEAM_CT ) )
+			Scoreboard_AddPlayerToSummary( ct, i );
+		else if ( Scoreboard_PlayerMatchesTeam( i, TEAM_TERRORIST ) )
+			Scoreboard_AddPlayerToSummary( tr, i );
+		else if ( Scoreboard_PlayerMatchesTeam( i, TEAM_SPECTATOR ) )
+			Scoreboard_AddPlayerToSummary( spec, i );
+	}
+
+	team_info_t *ctInfo = Scoreboard_FindTeamInfo( TEAM_CT );
+	team_info_t *trInfo = Scoreboard_FindTeamInfo( TEAM_TERRORIST );
+	if ( ctInfo && ctInfo->scores_overriden )
+		ct.frags = ctInfo->frags;
+	if ( trInfo && trInfo->scores_overriden )
+		tr.frags = trInfo->frags;
+
+	char serverName[90];
+	if ( gHUD.m_szServerName[0] )
+		strncpy( serverName, gHUD.m_szServerName, sizeof( serverName ) );
+	else
+		strncpy( serverName, "Counter-Strike", sizeof( serverName ) );
+	serverName[sizeof( serverName ) - 1] = 0;
+
+	const int boardX = xstart;
+	const int boardY = ystart;
+	const int boardW = xend - xstart;
+	const int boardH = yend - ystart;
+	const int pad = max( XRES( 12 ), 12 );
+	const int gap = max( XRES( 8 ), 8 );
+	const int headerH = max( YRES( 78 ), 72 );
+	const int specH = max( YRES( 78 ), 70 );
+	const int teamY = boardY + headerH + gap;
+	const int teamH = max( ROW_GAP * 5, boardH - headerH - specH - gap * 2 );
+	const int specY = teamY + teamH + gap;
+	const int colW = ( boardW - pad * 2 - gap ) / 2;
+	const int leftX = boardX + pad;
+	const int rightX = leftX + colW + gap;
+		const int bgAlpha = Scoreboard_CvarAlpha( m_pScoreboardBgAlpha, 176 );
+
+	int ctR, ctG, ctB;
+	int trR, trG, trB;
+	GetTeamColor( ctR, ctG, ctB, TEAM_CT );
+	GetTeamColor( trR, trG, trB, TEAM_TERRORIST );
+
+		Scoreboard_DrawSoftPanel( boardX, boardY, boardW, boardH, 0, 0, 0, bgAlpha );
+
+		Scoreboard_DrawCenteredText( boardX + pad, boardY + YRES( 10 ), boardW - pad * 2, serverName, 255, 180, 32 );
+
+	const int halfW = ( boardW - pad * 2 ) / 2;
+	const int scoreTop = boardY + YRES( 30 );
+	Scoreboard_DrawCenteredText( boardX + pad, scoreTop, halfW, "CT", ctR, ctG, ctB );
+	Scoreboard_DrawCenteredText( boardX + pad + halfW, scoreTop, halfW, "TR", trR, trG, trB );
+	Scoreboard_DrawCenteredText( boardX + pad + halfW - XRES( 8 ), scoreTop, XRES( 16 ), "|", 255, 180, 32 );
+
+	char scoreBuf[16];
+	sprintf( scoreBuf, "%d", ct.frags );
+	Scoreboard_DrawCenteredScaledText( boardX + pad, boardY + YRES( 47 ), halfW, scoreBuf, ctR, ctG, ctB, 1.85f );
+	sprintf( scoreBuf, "%d", tr.frags );
+	Scoreboard_DrawCenteredScaledText( boardX + pad + halfW, boardY + YRES( 47 ), halfW, scoreBuf, trR, trG, trB, 1.85f );
+
+		char title[64];
+		sprintf( title, "Counter-Terrorists  (%d)", ct.players );
+		Scoreboard_DrawCenteredText( leftX, teamY + YRES( 6 ), colW, title, ctR, ctG, ctB );
+		sprintf( title, "Terrorists  (%d)", tr.players );
+		Scoreboard_DrawCenteredText( rightX, teamY + YRES( 6 ), colW, title, trR, trG, trB );
+
+	DrawModernTeamPlayers( TEAM_CT, leftX, teamY + YRES( 18 ), colW, teamH - YRES( 18 ), 0 );
+	DrawModernTeamPlayers( TEAM_TERRORIST, rightX, teamY + YRES( 18 ), colW, teamH - YRES( 18 ), 0 );
+
+		sprintf( title, "Spectators  (%d)", spec.players );
+		Scoreboard_DrawCenteredText( leftX, specY + YRES( 6 ), boardW - pad * 2, title, 255, 180, 32 );
+	DrawModernTeamPlayers( TEAM_SPECTATOR, leftX, specY + YRES( 18 ), boardW - pad * 2, specH - YRES( 18 ), 0 );
+
 	return 1;
 }
 
@@ -404,15 +706,19 @@ int CHudScoreboard :: DrawTeams( float list_slot )
 			strncpy( teamName, Localize( "#Spectators" ), sizeof( teamName ) );
 			break;
 		}
+		teamName[sizeof( teamName ) - 1] = 0;
 
-		DrawUtils::DrawHudString( g_Columns[COL_NAME].start, ypos, g_Columns[COL_NAME].end, teamName, r, g, b );
+		FillRGBABlend( xstart + 8, ypos - 3, xend - xstart - 16, ROW_GAP + 4, r / 4, g / 4, b / 4, 100 );
+		FillRGBA( xstart + 9, ypos - 2, 2, ROW_GAP + 2, r, g, b, 210 );
+
+		Scoreboard_DrawTextShadow( g_Columns[COL_NAME].start, ypos, g_Columns[COL_NAME].end, teamName, r, g, b );
 		DrawUtils::DrawHudNumberString( g_Columns[COL_PING].start, ypos, g_Columns[COL_PING].end, team_info->sumping / team_info->players, r, g, b );
 
 		team_info->already_drawn = TRUE;  // set the already_drawn to be TRUE, so this team won't get drawn again
 
 		// draw underline
 		list_slot += 1.2f;
-		FillRGBA( xstart, ystart + (list_slot * ROW_GAP), xend - xstart, 1, r, g, b, 255);
+		FillRGBA( xstart + 8, ystart + (list_slot * ROW_GAP), xend - xstart - 16, 1, r, g, b, 135 );
 
 		list_slot += 0.4f;
 		// draw all the players that belong to this team, indented slightly
@@ -429,6 +735,11 @@ int CHudScoreboard :: DrawTeams( float list_slot )
 // returns the ypos where it finishes drawing
 int CHudScoreboard :: DrawPlayers( float list_slot, int nameoffset, const char *team )
 {
+	int drawnPlayers = 0;
+	const int rowAlpha = Scoreboard_CvarAlpha( m_pScoreboardRowAlpha, 34 );
+	const int rowX = xstart + 8;
+	const int rowWide = xend - xstart - 16;
+
 	// draw the players, in order,  and restricted to team if set
 	while ( 1 )
 	{
@@ -471,12 +782,18 @@ int CHudScoreboard :: DrawPlayers( float list_slot, int nameoffset, const char *
 		g *= colors[1];
 		b *= colors[2];
 
+		if ( drawnPlayers % 2 == 0 )
+			FillRGBABlend( rowX, ypos - 2, rowWide, ROW_GAP + 2, 255, 255, 255, rowAlpha );
+		else
+			FillRGBABlend( rowX, ypos - 2, rowWide, ROW_GAP + 2, 0, 0, 0, rowAlpha / 2 );
+
 		if(pl_info->thisplayer) // hey, it's me!
 		{
-			FillRGBABlend( xstart, ypos, xend - xstart, ROW_GAP, 255, 255, 255, 15 );
+			FillRGBABlend( rowX, ypos - 2, rowWide, ROW_GAP + 2, 255, 180, 32, 58 );
+			Scoreboard_DrawBorder( rowX, ypos - 2, rowWide, ROW_GAP + 2, 255, 180, 32, 135 );
 		}
 
-		DrawUtils::DrawHudString( g_Columns[COL_NAME].start + nameoffset, ypos, g_Columns[COL_NAME].start + 350, pl_info->name, r, g, b );
+		Scoreboard_DrawTextShadow( g_Columns[COL_NAME].start + nameoffset, ypos, g_Columns[COL_NAME].start + 350, pl_info->name, r, g, b );
 
 		if( cl_showplayerversion->value == 0.0f )
 		{
@@ -544,6 +861,7 @@ int CHudScoreboard :: DrawPlayers( float list_slot, int nameoffset, const char *
 
 		pl_info->name = NULL;  // set the name to be NULL, so this client won't get drawn again
 		list_slot++;
+		drawnPlayers++;
 	}
 
 	list_slot += 2.0f;
@@ -753,7 +1071,7 @@ void CHudScoreboard	:: UserCmd_ShowScoreboard2()
 	ystart     = atof(gEngfuncs.Cmd_Argv(3)) * ScreenHeight;
 	yend       = atof(gEngfuncs.Cmd_Argv(4)) * ScreenHeight;
 	m_colors.r = atoi(gEngfuncs.Cmd_Argv(5));
-	m_colors.b = atoi(gEngfuncs.Cmd_Argv(6));
+	m_colors.g = atoi(gEngfuncs.Cmd_Argv(6));
 	m_colors.b = atoi(gEngfuncs.Cmd_Argv(7));
 	m_colors.a = atoi(gEngfuncs.Cmd_Argv(8));
 	m_bDrawStroke = false;

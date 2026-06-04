@@ -25,6 +25,10 @@
 #include "pm_shared.h"
 
 #include <string.h>
+#include <stdlib.h>
+#if !defined( _WIN32 )
+#include <dlfcn.h>
+#endif
 #include "interface.h"
 #include "render_api.h"
 #include "mobility_int.h"
@@ -60,17 +64,55 @@ static IGameMenuExports *GetNativeMenuExports( void )
 	return static_cast<IGameMenuExports *>( menuFactory( GAMEMENUEXPORTS_INTERFACE_VERSION, NULL ) );
 }
 
-static bool HUD_MessageBox( const char *msg )
+static IGameMenuExports *LoadMenuLibrary( void )
 {
-	gEngfuncs.Con_Printf( "%s", msg );
+	CSysModule *mod = nullptr;
+	char fullPath[512];
 
-	if( g_iMobileAPIVersion && gMobileAPI.pfnSys_Warn )
+#if defined( __ANDROID__ )
+	const char *gamelibdir = getenv( "XASH3D_GAMELIBDIR" );
+	if( gamelibdir && gamelibdir[0] )
 	{
-		gMobileAPI.pfnSys_Warn( "%s", msg );
-		return true;
+		_snprintf( fullPath, sizeof( fullPath ), "%s/%s", gamelibdir, "libmenu.so" );
+	}
+	else
+	{
+		_snprintf( fullPath, sizeof( fullPath ), "libmenu.so" );
+	}
+	mod = Sys_LoadModule( fullPath );
+#else
+	const char *gamelibdir = getenv( "XASH3D_GAMELIBDIR" );
+
+	if( gamelibdir && gamelibdir[0] )
+	{
+		_snprintf( fullPath, sizeof( fullPath ), "%s/%s", gamelibdir, "libmenu.so" );
+	}
+	else
+	{
+		_snprintf( fullPath, sizeof( fullPath ), "libmenu.so" );
 	}
 
-	return false;
+	mod = Sys_LoadModule( fullPath );
+#endif
+
+	if( !mod )
+		return nullptr;
+
+	CreateInterfaceFn factory = Sys_GetFactory( mod );
+	if( !factory )
+	{
+		Sys_UnloadModule( mod );
+		return nullptr;
+	}
+
+	IGameMenuExports *menu = static_cast<IGameMenuExports *>( factory( GAMEMENUEXPORTS_INTERFACE_VERSION, NULL ) );
+	if( !menu )
+	{
+		Sys_UnloadModule( mod );
+		return nullptr;
+	}
+
+	return menu;
 }
 
 static void LoadMenuInterface( void )
@@ -78,9 +120,23 @@ static void LoadMenuInterface( void )
 	if( g_pMenu )
 		return;
 
+	// Try custom menu library (libmenu.so) first
+	g_pMenu = LoadMenuLibrary();
+	if( g_pMenu )
+	{
+		gEngfuncs.Con_Printf( "Loaded custom menu library\n" );
+		return;
+	}
+
+	// Fallback: engine-provided MenuFactory
 	g_pMenu = GetNativeMenuExports();
-	if( !g_pMenu )
-		HUD_MessageBox( "Error: native object \"MenuFactory\" is unavailable\n" );
+	if( g_pMenu )
+	{
+		gEngfuncs.Con_Printf( "Using engine-provided MenuFactory\n" );
+		return;
+	}
+
+	gEngfuncs.Con_Printf( "Warning: menu library not available, using old touch menus\n" );
 }
 
 void InitInput (void);

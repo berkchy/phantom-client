@@ -2,12 +2,19 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
+    <uses-permission android:name="android.permission.INTERNET" />
+
     <application
         android:forceQueryable="true"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
         android:roundIcon="@mipmap/ic_launcher"
+        android:theme="@style/Theme.CS16Launcher"
         tools:targetApi="r">
+
+        <activity
+            android:name=".LauncherActivity"
+            android:exported="false" />
 
         <activity
             android:name=".MainActivity"

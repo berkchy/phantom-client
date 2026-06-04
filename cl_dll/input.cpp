@@ -775,7 +775,10 @@ int CL_ButtonBits( int bResetState )
 	if ( in_attack.state & 3 )
 	{
 		if(gHUD.m_MOTD.m_bShow)
-			gHUD.m_MOTD.Reset();
+		{
+			if( !gHUD.m_MOTD.ActivateLinkAtCursor() )
+				gHUD.m_MOTD.Reset();
+		}
 		else
 			bits |= IN_ATTACK;
 	}

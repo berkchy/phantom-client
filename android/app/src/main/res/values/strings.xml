@@ -1,4 +1,32 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">CS16Client</string>
+    <string name="launcher_title_cs">Counter-Strike</string>
+    <string name="launcher_title_cz">Condition Zero</string>
+    <string name="launcher_tab_play">Play</string>
+    <string name="launcher_tab_servers">Servers</string>
+    <string name="launcher_tab_options">Options</string>
+    <string name="launcher_tab_console">Console</string>
+    <string name="launcher_launch">Launch</string>
+    <string name="launcher_connect">Connect</string>
+    <string name="launcher_refresh">Refresh</string>
+    <string name="launcher_direct_connect">Direct connect</string>
+    <string name="launcher_server_search">Search servers</string>
+    <string name="launcher_server_address">Server address</string>
+    <string name="launcher_extra_args">Extra argv</string>
+    <string name="launcher_command_preview">Command line preview</string>
+    <string name="launcher_enable_console">Console</string>
+    <string name="launcher_enable_log">Log</string>
+    <string name="launcher_enable_dev">Developer 2</string>
+    <string name="launcher_enable_yapb">Enable YAPB</string>
+    <string name="launcher_no_servers">No servers loaded yet.</string>
+    <string name="launcher_loading_servers">Loading servers...</string>
+    <string name="launcher_connect_password">Password</string>
+    <string name="launcher_connect_password_hint">Enter password</string>
+    <string name="launcher_no_engine">Engine not installed</string>
+    <string name="launcher_no_engine_message">Install Xash3D FWGS engine to launch the game.</string>
+    <string name="launcher_engine_install">Open releases</string>
+    <string name="launcher_engine_later">Cancel</string>
+    <string name="launcher_debug_console">Debug console</string>
+    <string name="launcher_copy_log">Copy log</string>
 </resources>

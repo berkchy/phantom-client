@@ -34,6 +34,7 @@
 #include "kbutton.h"
 #include "input.h"
 #include "com_weapons.h"
+#include "eventscripts.h"
 
 #ifndef M_PI
 #define M_PI		3.14159265358979323846	// matches value in gcc v2 math.h
@@ -42,6 +43,7 @@
 extern float	vJumpOrigin[3];
 extern float	vJumpAngles[3];
 
+void V_GetChaseOrigin( float *angles, float *origin, float distance, float *returnvec );
 
 extern engine_studio_api_t IEngineStudio;
 
@@ -82,6 +84,9 @@ cvar_t	*cl_waterdist;
 cvar_t	*cl_chasedist;
 cvar_t	*cl_weaponlag;
 cvar_t	*cl_quakeguns;
+cvar_t	*cl_viewmodel_sway;
+cvar_t	*cl_viewmodel_movebob;
+cvar_t	*cl_movecamera_shake;
 
 // These cvars are not registered (so users can't cheat), so set the ->value field directly
 // Register these cvars in V_Init() if needed for easy tweaking
@@ -480,7 +485,6 @@ void V_SmoothInterpolateAngles( float * startAngle, float * endAngle, float * fi
 	NormalizeAngles( finalAngle );
 }
 
-
 /*
 ==================
 V_CalcIntermissionRefdef
@@ -618,6 +622,88 @@ void V_CalcQuakeGuns()
 #endif
 }
 
+
+//==========================
+// V_CalcViewModelSway
+//==========================
+static void V_CalcViewModelSway( ref_params_t *pparams, float *origin, float *angles )
+{
+	static vec3_t g_vmSwayOffset = { 0, 0, 0 };
+	static vec3_t g_vmLastAngles = { 0, 0, 0 };
+
+	vec3_t forward, right, up;
+	AngleVectors( pparams->viewangles, forward, right, up );
+
+	// 1. Viewmodel sway - weapon shifts opposite to view rotation
+	if ( cl_viewmodel_sway && cl_viewmodel_sway->value > 0.0f )
+	{
+		vec3_t angleDelta;
+		for ( int i = 0; i < 3; i++ )
+		{
+			angleDelta[i] = pparams->viewangles[i] - g_vmLastAngles[i];
+			if ( angleDelta[i] > 180.0f ) angleDelta[i] -= 360.0f;
+			else if ( angleDelta[i] < -180.0f ) angleDelta[i] += 360.0f;
+		}
+
+		float swayScale = cl_viewmodel_sway->value * 0.4f;
+		vec3_t targetSway;
+		targetSway[0] = -angleDelta[YAW] * swayScale;
+		targetSway[1] = angleDelta[PITCH] * swayScale * 0.5f;
+		targetSway[2] = 0;
+
+		float speed = 6.0f * pparams->frametime;
+		if ( speed > 1.0f ) speed = 1.0f;
+		for ( int i = 0; i < 3; i++ )
+			g_vmSwayOffset[i] += ( targetSway[i] - g_vmSwayOffset[i] ) * speed;
+
+		for ( int i = 0; i < 3; i++ )
+			origin[i] += right[i] * g_vmSwayOffset[0] + up[i] * g_vmSwayOffset[1];
+
+		angles[ROLL] += g_vmSwayOffset[0] * 0.2f;
+
+		VectorCopy( pparams->viewangles, g_vmLastAngles );
+	}
+
+	// 2. Viewmodel movement bob - smooth velocity-based offset
+	if ( cl_viewmodel_movebob && cl_viewmodel_movebob->value > 0.0f )
+	{
+		static vec3_t g_vmMoveOffset = { 0, 0, 0 };
+
+		vec3_t vel;
+		VectorCopy( pparams->simvel, vel );
+		vel[2] = 0;
+
+		float speed = sqrt( vel[0] * vel[0] + vel[1] * vel[1] );
+		float bobScale = cl_viewmodel_movebob->value * 0.02f;
+
+		vec3_t targetOffset = { 0, 0, 0 };
+
+		if ( pparams->onground != -1 && speed > 0.0f )
+		{
+			vec3_t velDir;
+			VectorScale( vel, 1.0f / speed, velDir );
+
+			float fwd = DotProduct( velDir, forward );
+			float ri = DotProduct( velDir, right );
+
+			targetOffset[0] = fwd * speed * bobScale;
+			targetOffset[1] = ri * speed * bobScale * 0.5f;
+			targetOffset[2] = fabs( fwd ) * speed * bobScale * 0.3f;
+		}
+
+		float lerpSpeed = 4.0f * pparams->frametime;
+		if ( lerpSpeed > 1.0f ) lerpSpeed = 1.0f;
+		for ( int i = 0; i < 3; i++ )
+			g_vmMoveOffset[i] += ( targetOffset[i] - g_vmMoveOffset[i] ) * lerpSpeed;
+
+		for ( int i = 0; i < 3; i++ )
+			origin[i] += forward[i] * g_vmMoveOffset[0] + right[i] * g_vmMoveOffset[1];
+		origin[2] += g_vmMoveOffset[2];
+
+		angles[ROLL] -= g_vmMoveOffset[0] * 0.2f;
+		angles[PITCH] -= g_vmMoveOffset[1] * 0.15f;
+	}
+}
 
 //==========================
 // V_CalcViewModelLag
@@ -952,6 +1038,7 @@ void V_CalcNormalRefdef ( struct ref_params_s *pparams )
 		lastorg = pparams->simorg;
 	}
 
+	V_CalcViewModelSway( pparams, view->origin, view->angles );
 	V_CalcQuakeGuns();
 	V_CalcViewModelLag( pparams, view->origin, view->angles );
 
@@ -1054,6 +1141,24 @@ void V_CalcNormalRefdef ( struct ref_params_s *pparams )
 	}
 
 	lasttime = pparams->time;
+
+	// Movement camera shake (angles only — doesn't affect viewmodel)
+	if ( cl_movecamera_shake && cl_movecamera_shake->value > 0.0f )
+	{
+		vec3_t vel;
+		VectorCopy( pparams->simvel, vel );
+		vel[2] = 0;
+
+		float speed = sqrt( vel[0] * vel[0] + vel[1] * vel[1] );
+		if ( speed > 10.0f && pparams->onground != -1 )
+		{
+			float shakeScale = cl_movecamera_shake->value * 2.0f;
+			float shakeFreq = pparams->time * 10.0f;
+
+			pparams->viewangles[ROLL] += sin( shakeFreq ) * speed * shakeScale * 0.01f;
+			pparams->viewangles[PITCH] += cos( shakeFreq * 1.3f ) * speed * shakeScale * 0.005f;
+		}
+	}
 
 	v_origin = pparams->vieworg;
 }
@@ -1760,6 +1865,7 @@ void V_CalcSpectatorRefdef ( struct ref_params_s * pparams )
 	VectorCopy ( v_cl_angles, pparams->cl_viewangles );
 	VectorCopy ( v_angles, pparams->viewangles )
 	VectorCopy ( v_origin, pparams->vieworg );
+
 }
 
 void V_CalcThirdPersonRefdef( ref_params_t *pparams )
@@ -1890,4 +1996,8 @@ void V_Init (void)
 
 	cl_quakeguns		= gEngfuncs.pfnRegisterVariable( "cl_quakeguns", "0", FCVAR_ARCHIVE );
 	cl_weaponlag		= gEngfuncs.pfnRegisterVariable( "cl_weaponlag", "0", FCVAR_ARCHIVE );
+	cl_viewmodel_sway	= gEngfuncs.pfnRegisterVariable( "cl_viewmodel_sway", "0.5", FCVAR_ARCHIVE );
+	cl_viewmodel_movebob = gEngfuncs.pfnRegisterVariable( "cl_viewmodel_movebob", "0.3", FCVAR_ARCHIVE );
+	cl_movecamera_shake	= gEngfuncs.pfnRegisterVariable( "cl_movecamera_shake", "0.2", FCVAR_ARCHIVE );
+
 }

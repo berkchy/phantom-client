@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="cs16_primary">#E0B94A</color>
+    <color name="cs16_secondary">#E57A3A</color>
+    <color name="cs16_tertiary">#5D7FA8</color>
+    <color name="cs16_background">#101214</color>
+    <color name="cs16_surface">#171A1F</color>
+    <color name="cs16_surface_variant">#232830</color>
+    <color name="cs16_on_surface">#F2F4F7</color>
+    <color name="cs16_on_surface_variant">#C8CDD3</color>
+</resources>

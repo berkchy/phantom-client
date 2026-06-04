@@ -337,6 +337,7 @@ void CHud :: Init( void )
 	cl_min_t     = CVAR_CREATE( "cl_min_t", "1", FCVAR_ARCHIVE );
 	cl_min_ct    = CVAR_CREATE( "cl_min_ct", "2", FCVAR_ARCHIVE );
 	default_fov  = CVAR_CREATE( "default_fov", "90", 0 );
+	cl_zoom_smooth = CVAR_CREATE( "cl_zoom_smooth", "0", FCVAR_ARCHIVE );
 	m_pCvarDraw  = CVAR_CREATE( "hud_draw", "1", FCVAR_ARCHIVE );
 	fastsprites  = CVAR_CREATE( "fastsprites", "0", FCVAR_ARCHIVE );
 	cl_gunsmoke  = CVAR_CREATE( "cl_gunsmoke", "0", FCVAR_ARCHIVE );
@@ -367,6 +368,9 @@ void CHud :: Init( void )
 
 	m_iLogo = 0;
 	m_iFOV = 0;
+	m_flZoomTargetFOV = 0;
+	m_flZoomStartFOV = 0;
+	m_flZoomStartTime = 0;
 
 	m_pSpriteList = NULL;
 
@@ -650,8 +654,20 @@ int CHud::MsgFunc_SetFOV(const char *pszName,  int iSize, void *pbuf)
 	int newfov = reader.ReadByte();
 	int def_fov = default_fov->value;
 
-	g_lastFOV = newfov;
-	m_iFOV = newfov ? newfov : def_fov;
+	// CS 1.6 server hardcodes DEFAULT_FOV as 90.
+	// Respect client's default_fov cvar when unzoomed.
+	if ( newfov == 90 )
+		newfov = def_fov;
+
+	m_flZoomTargetFOV = newfov ? newfov : def_fov;
+	m_flZoomStartFOV = m_iFOV;
+	m_flZoomStartTime = gHUD.m_flTime;
+
+	if ( !cl_zoom_smooth || cl_zoom_smooth->value <= 0 )
+	{
+		g_lastFOV = m_flZoomTargetFOV;
+		m_iFOV = m_flZoomTargetFOV;
+	}
 
 	// the clients fov is actually set in the client data update section of the hud
 

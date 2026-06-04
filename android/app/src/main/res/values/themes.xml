@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.CS16Launcher" parent="Theme.Material3.Dark.NoActionBar">
+        <item name="colorPrimary">@color/cs16_primary</item>
+        <item name="colorOnPrimary">@color/cs16_background</item>
+        <item name="colorSecondary">@color/cs16_secondary</item>
+        <item name="colorOnSecondary">@color/cs16_background</item>
+        <item name="colorTertiary">@color/cs16_tertiary</item>
+        <item name="colorOnTertiary">@color/cs16_background</item>
+        <item name="colorSurface">@color/cs16_surface</item>
+        <item name="colorOnSurface">@color/cs16_on_surface</item>
+        <item name="colorSurfaceVariant">@color/cs16_surface_variant</item>
+        <item name="colorOnSurfaceVariant">@color/cs16_on_surface_variant</item>
+        <item name="android:windowBackground">@color/cs16_background</item>
+        <item name="android:statusBarColor">@color/cs16_background</item>
+        <item name="android:navigationBarColor">@color/cs16_background</item>
+    </style>
+</resources>

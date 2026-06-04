@@ -1,0 +1,428 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+	xmlns:app="http://schemas.android.com/apk/res-auto"
+	android:layout_width="match_parent"
+	android:layout_height="match_parent"
+	android:orientation="vertical"
+	android:background="@color/cs16_background">
+
+	<com.google.android.material.appbar.MaterialToolbar
+		android:id="@+id/toolbar"
+		android:layout_width="match_parent"
+		android:layout_height="?attr/actionBarSize"
+		android:background="@color/cs16_surface"
+		android:titleTextColor="@color/cs16_on_surface"
+		app:title="@string/app_name"
+		app:subtitleTextColor="@color/cs16_on_surface_variant" />
+
+	<FrameLayout
+		android:id="@+id/contentFrame"
+		android:layout_width="match_parent"
+		android:layout_height="0dp"
+		android:layout_weight="1">
+
+		<ScrollView
+			android:id="@+id/playPanel"
+			android:layout_width="match_parent"
+			android:layout_height="match_parent"
+			android:fillViewport="true"
+			android:padding="12dp">
+
+			<LinearLayout
+				android:layout_width="match_parent"
+				android:layout_height="wrap_content"
+				android:orientation="vertical">
+
+				<LinearLayout
+					android:layout_width="match_parent"
+					android:layout_height="wrap_content"
+					android:gravity="center_vertical"
+					android:orientation="horizontal"
+					android:paddingBottom="12dp">
+
+					<ImageView
+						android:id="@+id/gameIcon"
+						android:layout_width="72dp"
+						android:layout_height="72dp"
+						android:importantForAccessibility="no"
+						android:src="@mipmap/ic_launcher_cz" />
+
+					<LinearLayout
+						android:layout_width="0dp"
+						android:layout_height="wrap_content"
+						android:layout_marginStart="12dp"
+						android:layout_weight="1"
+						android:orientation="vertical">
+
+						<TextView
+							android:id="@+id/gameTitle"
+							android:layout_width="wrap_content"
+							android:layout_height="wrap_content"
+							android:textColor="@color/cs16_on_surface"
+							android:textSize="26sp"
+							android:textStyle="bold" />
+
+						<TextView
+							android:id="@+id/gameSubtitle"
+							android:layout_width="wrap_content"
+							android:layout_height="wrap_content"
+							android:layout_marginTop="4dp"
+							android:textColor="@color/cs16_on_surface_variant"
+							android:textSize="14sp" />
+					</LinearLayout>
+				</LinearLayout>
+
+				<com.google.android.material.card.MaterialCardView
+					android:layout_width="match_parent"
+					android:layout_height="wrap_content"
+					android:layout_marginBottom="12dp"
+					app:cardBackgroundColor="@color/cs16_surface"
+					app:cardCornerRadius="12dp"
+					app:strokeColor="@color/cs16_surface_variant"
+					app:strokeWidth="1dp">
+
+					<LinearLayout
+						android:layout_width="match_parent"
+						android:layout_height="wrap_content"
+						android:orientation="vertical"
+						android:padding="16dp">
+
+						<TextView
+							android:id="@+id/selectedServerText"
+							android:layout_width="match_parent"
+							android:layout_height="wrap_content"
+							android:textColor="@color/cs16_on_surface"
+							android:textSize="16sp"
+							android:textStyle="bold"
+							android:text="@string/launcher_no_servers" />
+
+						<TextView
+							android:id="@+id/commandPreview"
+							android:layout_width="match_parent"
+							android:layout_height="wrap_content"
+							android:layout_marginTop="8dp"
+							android:textColor="@color/cs16_on_surface_variant"
+							android:textSize="12sp"
+							android:typeface="monospace" />
+
+						<com.google.android.material.button.MaterialButton
+							android:id="@+id/playButton"
+							android:layout_width="match_parent"
+							android:layout_height="wrap_content"
+							android:layout_marginTop="16dp"
+							android:text="@string/launcher_launch"
+							app:icon="@android:drawable/ic_media_play" />
+					</LinearLayout>
+				</com.google.android.material.card.MaterialCardView>
+
+				<TextView
+					android:layout_width="match_parent"
+					android:layout_height="wrap_content"
+					android:textColor="@color/cs16_on_surface_variant"
+					android:textSize="13sp"
+					android:text="Use the options tab to edit argv and startup flags." />
+			</LinearLayout>
+		</ScrollView>
+
+		<LinearLayout
+			android:id="@+id/serversPanel"
+			android:layout_width="match_parent"
+			android:layout_height="match_parent"
+			android:orientation="vertical"
+			android:padding="12dp"
+			android:visibility="gone">
+
+			<com.google.android.material.textfield.TextInputLayout
+				android:layout_width="match_parent"
+				android:layout_height="wrap_content"
+				android:hint="@string/launcher_server_search"
+				style="@style/Widget.Material3.TextInputLayout.OutlinedBox">
+
+				<com.google.android.material.textfield.TextInputEditText
+					android:id="@+id/serverSearch"
+					android:layout_width="match_parent"
+					android:layout_height="wrap_content" />
+			</com.google.android.material.textfield.TextInputLayout>
+
+			<LinearLayout
+				android:layout_width="match_parent"
+				android:layout_height="wrap_content"
+				android:layout_marginTop="12dp"
+				android:gravity="center_vertical"
+				android:orientation="horizontal">
+
+				<com.google.android.material.textfield.TextInputLayout
+					android:layout_width="0dp"
+					android:layout_height="wrap_content"
+					android:layout_weight="1"
+					android:hint="@string/launcher_server_address"
+					style="@style/Widget.Material3.TextInputLayout.OutlinedBox">
+
+					<com.google.android.material.textfield.TextInputEditText
+						android:id="@+id/directConnectAddress"
+						android:layout_width="match_parent"
+						android:layout_height="wrap_content"
+						android:inputType="textUri" />
+				</com.google.android.material.textfield.TextInputLayout>
+
+				<com.google.android.material.button.MaterialButton
+					android:id="@+id/directConnectButton"
+					android:layout_width="wrap_content"
+					android:layout_height="wrap_content"
+					android:layout_marginStart="12dp"
+					android:text="@string/launcher_direct_connect"
+					app:icon="@android:drawable/ic_menu_send" />
+			</LinearLayout>
+
+			<LinearLayout
+				android:layout_width="match_parent"
+				android:layout_height="wrap_content"
+				android:layout_marginTop="12dp"
+				android:gravity="center_vertical"
+				android:orientation="horizontal">
+
+				<TextView
+					android:id="@+id/serverStatus"
+					android:layout_width="0dp"
+					android:layout_height="wrap_content"
+					android:layout_weight="1"
+					android:textColor="@color/cs16_on_surface_variant"
+					android:textSize="13sp"
+					android:text="@string/launcher_no_servers" />
+
+				<com.google.android.material.button.MaterialButton
+					android:id="@+id/refreshServersButton"
+					android:layout_width="wrap_content"
+					android:layout_height="wrap_content"
+					android:text="@string/launcher_refresh"
+					app:icon="@android:drawable/ic_popup_sync" />
+			</LinearLayout>
+
+			<ProgressBar
+				android:id="@+id/serverLoading"
+				style="?android:attr/progressBarStyleSmall"
+				android:layout_width="wrap_content"
+				android:layout_height="wrap_content"
+				android:layout_marginTop="8dp"
+				android:visibility="gone" />
+
+			<androidx.recyclerview.widget.RecyclerView
+				android:id="@+id/serverList"
+				android:layout_width="match_parent"
+				android:layout_height="0dp"
+				android:layout_marginTop="12dp"
+				android:layout_weight="1"
+				android:clipToPadding="false"
+				android:paddingBottom="8dp" />
+
+		</LinearLayout>
+
+		<ScrollView
+			android:id="@+id/optionsPanel"
+			android:layout_width="match_parent"
+			android:layout_height="match_parent"
+			android:fillViewport="true"
+			android:padding="12dp"
+			android:visibility="gone">
+
+			<LinearLayout
+				android:layout_width="match_parent"
+				android:layout_height="wrap_content"
+				android:orientation="vertical">
+
+				<com.google.android.material.card.MaterialCardView
+					android:layout_width="match_parent"
+					android:layout_height="wrap_content"
+					app:cardBackgroundColor="@color/cs16_surface"
+					app:cardCornerRadius="12dp"
+					app:strokeColor="@color/cs16_surface_variant"
+					app:strokeWidth="1dp">
+
+					<LinearLayout
+						android:layout_width="match_parent"
+						android:layout_height="wrap_content"
+						android:orientation="vertical"
+						android:padding="16dp">
+
+						<com.google.android.material.materialswitch.MaterialSwitch
+							android:id="@+id/enableConsole"
+							android:layout_width="match_parent"
+							android:layout_height="wrap_content"
+							android:text="@string/launcher_enable_console" />
+
+						<com.google.android.material.materialswitch.MaterialSwitch
+							android:id="@+id/enableLog"
+							android:layout_width="match_parent"
+							android:layout_height="wrap_content"
+							android:text="@string/launcher_enable_log" />
+
+						<com.google.android.material.materialswitch.MaterialSwitch
+							android:id="@+id/enableDev"
+							android:layout_width="match_parent"
+							android:layout_height="wrap_content"
+							android:text="@string/launcher_enable_dev" />
+
+						<com.google.android.material.materialswitch.MaterialSwitch
+							android:id="@+id/enableYapb"
+							android:layout_width="match_parent"
+							android:layout_height="wrap_content"
+							android:text="@string/launcher_enable_yapb" />
+
+						<com.google.android.material.textfield.TextInputLayout
+							android:layout_width="match_parent"
+							android:layout_height="wrap_content"
+							android:layout_marginTop="12dp"
+							android:hint="@string/launcher_extra_args"
+							style="@style/Widget.Material3.TextInputLayout.OutlinedBox">
+
+							<com.google.android.material.textfield.TextInputEditText
+								android:id="@+id/customArgs"
+								android:layout_width="match_parent"
+								android:layout_height="wrap_content"
+								android:inputType="textMultiLine"
+								android:minLines="3"
+								android:gravity="top|start" />
+						</com.google.android.material.textfield.TextInputLayout>
+
+						<TextView
+							android:layout_width="match_parent"
+							android:layout_height="wrap_content"
+							android:layout_marginTop="12dp"
+							android:text="@string/launcher_command_preview"
+							android:textColor="@color/cs16_on_surface_variant"
+							android:textSize="12sp" />
+
+						<TextView
+							android:id="@+id/optionsPreview"
+							android:layout_width="match_parent"
+							android:layout_height="wrap_content"
+							android:layout_marginTop="4dp"
+							android:textColor="@color/cs16_on_surface"
+							android:textSize="12sp"
+							android:typeface="monospace" />
+					</LinearLayout>
+				</com.google.android.material.card.MaterialCardView>
+			</LinearLayout>
+		</ScrollView>
+
+		<LinearLayout
+			android:id="@+id/consolePanel"
+			android:layout_width="match_parent"
+			android:layout_height="match_parent"
+			android:orientation="vertical"
+			android:padding="12dp"
+			android:visibility="gone">
+
+			<com.google.android.material.card.MaterialCardView
+				android:layout_width="match_parent"
+				android:layout_height="match_parent"
+				app:cardBackgroundColor="@color/cs16_surface"
+				app:cardCornerRadius="12dp"
+				app:strokeColor="@color/cs16_surface_variant"
+				app:strokeWidth="1dp">
+
+				<LinearLayout
+					android:layout_width="match_parent"
+					android:layout_height="match_parent"
+					android:orientation="vertical"
+					android:padding="12dp">
+
+					<LinearLayout
+						android:layout_width="match_parent"
+						android:layout_height="wrap_content"
+						android:gravity="center_vertical"
+						android:orientation="horizontal">
+
+						<TextView
+							android:layout_width="0dp"
+							android:layout_height="wrap_content"
+							android:layout_weight="1"
+							android:text="@string/launcher_debug_console"
+							android:textColor="@color/cs16_on_surface"
+							android:textSize="12sp"
+							android:textStyle="bold" />
+
+						<com.google.android.material.button.MaterialButton
+							android:id="@+id/copyMiniConsoleButton"
+							android:layout_width="wrap_content"
+							android:layout_height="wrap_content"
+							android:text="@string/launcher_copy_log"
+							app:icon="@android:drawable/ic_menu_save" />
+					</LinearLayout>
+
+					<ScrollView
+						android:id="@+id/miniConsoleScroll"
+						android:layout_width="match_parent"
+						android:layout_height="0dp"
+						android:layout_marginTop="8dp"
+						android:layout_weight="1"
+						android:fillViewport="true">
+
+						<TextView
+							android:id="@+id/miniConsole"
+							android:layout_width="match_parent"
+							android:layout_height="wrap_content"
+							android:longClickable="true"
+							android:textIsSelectable="true"
+							android:textColor="@color/cs16_on_surface_variant"
+							android:textSize="11sp"
+							android:typeface="monospace" />
+					</ScrollView>
+				</LinearLayout>
+			</com.google.android.material.card.MaterialCardView>
+		</LinearLayout>
+	</FrameLayout>
+
+	<com.google.android.material.button.MaterialButtonToggleGroup
+		android:id="@+id/tabGroup"
+		android:layout_width="match_parent"
+		android:layout_height="wrap_content"
+		android:layout_margin="12dp"
+		app:singleSelection="true"
+		app:selectionRequired="true">
+
+		<com.google.android.material.button.MaterialButton
+			android:id="@+id/tabPlay"
+			style="@style/Widget.Material3.Button.TextButton"
+			android:layout_width="0dp"
+			android:layout_height="wrap_content"
+			android:layout_weight="1"
+			android:text="@string/launcher_tab_play"
+			app:icon="@android:drawable/ic_media_play"
+			app:iconGravity="top"
+			app:iconPadding="4dp" />
+
+		<com.google.android.material.button.MaterialButton
+			android:id="@+id/tabServers"
+			style="@style/Widget.Material3.Button.TextButton"
+			android:layout_width="0dp"
+			android:layout_height="wrap_content"
+			android:layout_weight="1"
+			android:text="@string/launcher_tab_servers"
+			app:icon="@android:drawable/ic_menu_search"
+			app:iconGravity="top"
+			app:iconPadding="4dp" />
+
+		<com.google.android.material.button.MaterialButton
+			android:id="@+id/tabOptions"
+			style="@style/Widget.Material3.Button.TextButton"
+			android:layout_width="0dp"
+			android:layout_height="wrap_content"
+			android:layout_weight="1"
+			android:text="@string/launcher_tab_options"
+			app:icon="@android:drawable/ic_menu_manage"
+			app:iconGravity="top"
+			app:iconPadding="4dp" />
+
+		<com.google.android.material.button.MaterialButton
+			android:id="@+id/tabConsole"
+			style="@style/Widget.Material3.Button.TextButton"
+			android:layout_width="0dp"
+			android:layout_height="wrap_content"
+			android:layout_weight="1"
+			android:text="@string/launcher_tab_console"
+			app:icon="@android:drawable/ic_menu_info_details"
+			app:iconGravity="top"
+			app:iconPadding="4dp" />
+	</com.google.android.material.button.MaterialButtonToggleGroup>
+</LinearLayout>

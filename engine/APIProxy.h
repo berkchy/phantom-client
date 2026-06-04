@@ -354,6 +354,11 @@ typedef int						(*pfnEngSrc_pfnGetAppID_t)			( void );
 typedef cmdalias_t*				(*pfnEngSrc_pfnGetAliases_t)		( void );
 typedef void					(*pfnEngSrc_pfnVguiWrap2_GetMouseDelta_t) ( int *x, int *y );
 typedef int							(*pfnEngSrc_pfnFilteredClientCmd_t) 	( char *szCmdString );
+typedef void					(*pfnEngSrc_pfnImGui_DrawText_t)		( int x, int y, int r, int g, int b, int a, const char *text );
+typedef int						(*pfnEngSrc_pfnImGui_GetTextWidth_t)	( const char *text, float fontSize );
+typedef void					(*pfnEngSrc_pfnShellExecute_t)		( const char *path, const char *parms );
+typedef int						(*pfnEngSrc_pfnShowHtmlMotd_t)		( const char *html, const char *baseUrl, const char *serverName, int x, int y, int width, int height );
+typedef void					(*pfnEngSrc_pfnHideHtmlMotd_t)		( void );
 
 // Pointers to the exported engine functions themselves
 typedef struct cl_enginefuncs_s
@@ -493,6 +498,11 @@ typedef struct cl_enginefuncs_s
 	pfnEngSrc_pfnGetAliases_t				pfnGetAliasList;
 	pfnEngSrc_pfnVguiWrap2_GetMouseDelta_t pfnVguiWrap2_GetMouseDelta;
 	pfnEngSrc_pfnFilteredClientCmd_t		pfnFilteredClientCmd;
+	pfnEngSrc_pfnImGui_DrawText_t			pfnImGui_DrawText;
+	pfnEngSrc_pfnImGui_GetTextWidth_t		pfnImGui_GetTextWidth;
+	pfnEngSrc_pfnShellExecute_t				pfnShellExecute;
+	pfnEngSrc_pfnShowHtmlMotd_t				pfnShowHtmlMotd;
+	pfnEngSrc_pfnHideHtmlMotd_t				pfnHideHtmlMotd;
 } cl_enginefunc_t;
 
 // Function type declarations for engine destination functions
