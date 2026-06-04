@@ -68,16 +68,17 @@ static IGameMenuExports *LoadMenuLibrary( void )
 {
 	CSysModule *mod = nullptr;
 	char fullPath[512];
+	const char *menuDllName = MENUDLL;
 
 #if defined( __ANDROID__ )
 	const char *gamelibdir = getenv( "XASH3D_GAMELIBDIR" );
 	if( gamelibdir && gamelibdir[0] )
 	{
-		_snprintf( fullPath, sizeof( fullPath ), "%s/%s", gamelibdir, "libmenu.so" );
+		_snprintf( fullPath, sizeof( fullPath ), "%s/%s", gamelibdir, menuDllName );
 	}
 	else
 	{
-		_snprintf( fullPath, sizeof( fullPath ), "libmenu.so" );
+		_snprintf( fullPath, sizeof( fullPath ), "%s", menuDllName );
 	}
 	mod = Sys_LoadModule( fullPath );
 #else
@@ -85,11 +86,11 @@ static IGameMenuExports *LoadMenuLibrary( void )
 
 	if( gamelibdir && gamelibdir[0] )
 	{
-		_snprintf( fullPath, sizeof( fullPath ), "%s/%s", gamelibdir, "libmenu.so" );
+		_snprintf( fullPath, sizeof( fullPath ), "%s/%s", gamelibdir, menuDllName );
 	}
 	else
 	{
-		_snprintf( fullPath, sizeof( fullPath ), "libmenu.so" );
+		_snprintf( fullPath, sizeof( fullPath ), "%s", menuDllName );
 	}
 
 	mod = Sys_LoadModule( fullPath );
