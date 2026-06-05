@@ -46,6 +46,8 @@ struct WEAPON
 	wrect_t rcAmmo;
 	HSPRITE hAmmo2;
 	wrect_t rcAmmo2;
+	HSPRITE hHudIcon;
+	wrect_t rcHudIcon;
 	HSPRITE hCrosshair;
 	wrect_t rcCrosshair;
 	HSPRITE hAutoaim;

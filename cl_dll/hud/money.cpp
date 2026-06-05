@@ -77,7 +77,7 @@ int CHudMoney::Draw(float flTime)
 
 	int iDollarWidth = m_hDollar.rect.Width();
 
-	int x = ScreenWidth - iDollarWidth * 7;
+	int x = 10;
 	int y = MONEY_YPOS;
 
 	if( m_iBlinkAmt )

@@ -521,11 +521,66 @@ private:
 		int m_HUD_d_skull;  // sprite index of skull icon
 		int m_HUD_d_headshot;
 		cvar_t *hud_deathnotice_time;
+		cvar_t *hud_deathnotice_x;
+		cvar_t *hud_deathnotice_y;
 		cvar_t *hud_deathnotice_bg_alpha;
 		cvar_t *hud_deathnotice_bg_softness;
 		cvar_t *hud_deathnotice_anim_time;
 		cvar_t *hud_deathnotice_row_gap;
 	};
+
+//
+//-----------------------------------------------------
+//
+class CHudKillMark : public CHudBase
+{
+public:
+	int Init( void );
+	void Reset( void );
+	void InitHUDData( void );
+	int VidInit( void );
+	void Shutdown( void );
+	int Draw( float flTime );
+
+	void NotifyDeath( int killer, int victim, bool killerIsLocal, bool victimIsLocal, bool suicide, bool teamkill, bool nonPlayerKill, bool headshot, const char *weaponName );
+
+private:
+	const char *ResolveSoundCandidate( const char *const *paths, int count ) const;
+	void ResetState( void );
+	void TriggerKillSound( int count, bool headshot, bool knife, bool grenade );
+	void BuildHudNumberRect( wrect_t *prc, int w, int h, int xOffset, int yOffset );
+	int DrawHudNumber( HSPRITE sprite, const wrect_t *prc, int x, int y, int iNumber, int r, int g, int b, int a, float scale );
+
+	cvar_t *hud_killmark_combo_reset;
+	cvar_t *hud_killmark_x;
+	cvar_t *hud_killmark_y;
+	cvar_t *hud_killmark_num_scale;
+	cvar_t *hud_killmark_fadein_time;
+	cvar_t *hud_killmark_hold_time;
+	cvar_t *hud_killmark_fadeout_time;
+	float m_flComboResetTime;
+	float m_flDisplayEndTime;
+	float m_flCreateTime;
+	int m_iKillCount;
+	int m_iLastLoggedKillCount;
+	bool m_bFirstBloodAvailable;
+	HSPRITE m_hNumSprite;
+	HSPRITE m_hTextSprite;
+	HSPRITE m_hKillSprite;
+	wrect_t m_rcKillText;
+	wrect_t m_rcFirstBloodText;
+	wrect_t m_rcIconHead;
+	wrect_t m_rcIconKnife;
+	wrect_t m_rcIconFrag;
+	wrect_t m_rcNumber[10];
+	const char *m_pszKillSounds[13];
+	const char *m_pszHeadshotSound;
+	const char *m_pszKnifeSound;
+	const char *m_pszGrenadeSound;
+	bool m_bLastHeadshot;
+	bool m_bCurrentFirstBlood;
+	char m_szLastWeapon[32];
+};
 
 //
 //-----------------------------------------------------
@@ -1090,6 +1145,7 @@ public:
 	CHudMessage     m_Message;
 	CHudStatusBar   m_StatusBar;
 	CHudDeathNotice m_DeathNotice;
+	CHudKillMark    m_KillMark;
 	CHudSayText     m_SayText;
 	CHudMenu        m_Menu;
 	CHudAmmoSecondary m_AmmoSecondary;

@@ -95,10 +95,12 @@ void WeaponsResource :: LoadWeaponSprites( WEAPON *pWeapon )
 	memset( &pWeapon->rcInactive, 0, sizeof(wrect_t) );
 	memset( &pWeapon->rcAmmo, 0, sizeof(wrect_t) );
 	memset( &pWeapon->rcAmmo2, 0, sizeof(wrect_t) );
+	memset( &pWeapon->rcHudIcon, 0, sizeof(wrect_t) );
 	pWeapon->hInactive = 0;
 	pWeapon->hActive = 0;
 	pWeapon->hAmmo = 0;
 	pWeapon->hAmmo2 = 0;
+	pWeapon->hHudIcon = 0;
 
 	snprintf(sz, sizeof(sz), "sprites/%s.txt", pWeapon->szName);
 	client_sprite_t *pList = SPR_GetList(sz, &i);
@@ -199,6 +201,26 @@ void WeaponsResource :: LoadWeaponSprites( WEAPON *pWeapon )
 	}
 	else
 		pWeapon->hAmmo2 = 0;
+
+	{
+		char hudName[256];
+		const char *iconName = pWeapon->szName;
+		if( !stricmp( iconName, "hegrenade" ) || !stricmp( iconName, "grenade" ) )
+			iconName = "grenade";
+
+		snprintf( hudName, sizeof( hudName ), "d_%s", iconName );
+		int hudIndex = gHUD.GetSpriteIndex( hudName );
+		if( hudIndex >= 0 )
+		{
+			pWeapon->hHudIcon = gHUD.GetSprite( hudIndex );
+			pWeapon->rcHudIcon = gHUD.GetSpriteRect( hudIndex );
+		}
+		else
+		{
+			pWeapon->hHudIcon = 0;
+			memset( &pWeapon->rcHudIcon, 0, sizeof( wrect_t ) );
+		}
+	}
 
 }
 
@@ -1083,6 +1105,7 @@ int CHudAmmo::Draw(float flTime)
 	if (m_pWeapon->iAmmoType > 0)
 	{
 		int iIconWidth = m_pWeapon->rcAmmo.Width();
+		int iIconHeight = m_pWeapon->rcHudIcon.Height();
 		
 		if (pw->iClip >= 0)
 		{
@@ -1117,8 +1140,17 @@ int CHudAmmo::Draw(float flTime)
 
 		// Draw the ammo Icon
 		int iOffset = (m_pWeapon->rcAmmo.Height())/8;
+		int weaponIconX = x;
+		int weaponIconY = y - iOffset;
 		SPR_Set(m_pWeapon->hAmmo, r, g, b);
-		SPR_DrawAdditive(0, x, y - iOffset, &m_pWeapon->rcAmmo);
+		SPR_DrawAdditive(0, weaponIconX, weaponIconY, &m_pWeapon->rcAmmo);
+
+		if( m_pWeapon->hHudIcon && m_pWeapon->rcHudIcon.Width() > 0 && iIconHeight > 0 )
+		{
+			int weaponSpriteY = weaponIconY - iIconHeight - YRES( 4 );
+			SPR_Set( m_pWeapon->hHudIcon, r, g, b );
+			SPR_DrawAdditive( 0, weaponIconX, weaponSpriteY, &m_pWeapon->rcHudIcon );
+		}
 	}
 
 	// Does weapon have seconday ammo?
@@ -2102,4 +2134,3 @@ void CHudAmmo::HideCrosshair()
 {
 	m_hStaticSpr = 0;
 }
-

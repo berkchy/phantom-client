@@ -21,6 +21,7 @@ list(REMOVE_ITEM CS_CLIENT_SRC "${CMAKE_CURRENT_SOURCE_DIR}/inputw32.cpp")
 list(REMOVE_ITEM CS_WPN_SRC "${CMAKE_CURRENT_SOURCE_DIR}/cs_wpn/cs_baseentity.cpp")
 list(APPEND CS_CLIENT_SRC ../common/interface.cpp)
 list(APPEND CS_CLIENT_SRC ../public/utflib.cpp)
+list(APPEND CS_CLIENT_SRC ${CMAKE_CURRENT_SOURCE_DIR}/killmark.cpp)
 
 if(HAVE_STRLCPY)
 	add_definitions(-DHAVE_STRLCPY)

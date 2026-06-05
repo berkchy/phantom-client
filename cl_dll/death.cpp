@@ -71,6 +71,31 @@ static int DeathNotice_RowGap( const cvar_t *rowGapCvar )
 	return gap;
 }
 
+static int DeathNotice_RightPad( const cvar_t *xCvar )
+{
+	const int defaultPad = 4;
+	const int minPad = 0;
+	const int maxPad = ScreenWidth;
+	int pad = xCvar ? (int)( xCvar->value + 0.5f ) : defaultPad;
+	if( pad < minPad )
+		pad = minPad;
+	if( pad > maxPad )
+		pad = maxPad;
+	return pad;
+}
+
+static int DeathNotice_YOffset( const cvar_t *yCvar )
+{
+	int offset = yCvar ? (int)( yCvar->value + 0.5f ) : 0;
+	const int minOffset = -ScreenHeight;
+	const int maxOffset = ScreenHeight;
+	if( offset < minOffset )
+		offset = minOffset;
+	if( offset > maxOffset )
+		offset = maxOffset;
+	return offset;
+}
+
 static float DeathNotice_ClampFloat( float value, float minValue, float maxValue )
 {
 	if( value < minValue )
@@ -96,14 +121,15 @@ static float DeathNotice_EaseOutCubic( float t )
 	return 1.0f - inv * inv * inv;
 }
 
-static int DeathNotice_RowBaseY( int slot, const cvar_t *rowGapCvar )
+static int DeathNotice_RowBaseY( int slot, const cvar_t *rowGapCvar, const cvar_t *yCvar )
 {
 	const int rowGap = DeathNotice_RowGap( rowGapCvar );
+	const int yOffset = DeathNotice_YOffset( yCvar );
 
 	if( !g_iUser1 )
-		return YRES(DEATHNOTICE_TOP) + 2 + ( rowGap * slot );
+		return YRES(DEATHNOTICE_TOP) + 2 + yOffset + ( rowGap * slot );
 
-	return ScreenHeight / 5 + 2 + ( rowGap * slot );
+	return ScreenHeight / 5 + 2 + yOffset + ( rowGap * slot );
 }
 
 static int DeathNotice_RectHeight( int weaponId, int headshotId )
@@ -182,6 +208,8 @@ int CHudDeathNotice :: Init( void )
 	HOOK_MESSAGE( gHUD.m_DeathNotice, DeathMsg );
 
 	hud_deathnotice_time = CVAR_CREATE( "hud_deathnotice_time", "6", FCVAR_ARCHIVE );
+	hud_deathnotice_x = CVAR_CREATE( "hud_deathnotice_x", "4", FCVAR_ARCHIVE );
+	hud_deathnotice_y = CVAR_CREATE( "hud_deathnotice_y", "0", FCVAR_ARCHIVE );
 	hud_deathnotice_bg_alpha = CVAR_CREATE( "hud_deathnotice_bg_alpha", "96", FCVAR_ARCHIVE );
 	hud_deathnotice_bg_softness = CVAR_CREATE( "hud_deathnotice_bg_softness", "100", FCVAR_ARCHIVE );
 	hud_deathnotice_anim_time = CVAR_CREATE( "hud_deathnotice_anim_time", "0.18", FCVAR_ARCHIVE );
@@ -243,8 +271,8 @@ int CHudDeathNotice :: Draw( float flTime )
 			const float exit = DeathNotice_ClampFloat( ( notice.flDisplayTime - flTime ) / animTime, 0.0f, 1.0f );
 			const float fade = enter < exit ? enter : exit;
 			const float slot = DeathNotice_EaseOutCubic( ( flTime - notice.flSlotMoveTime ) / animTime );
-			const float fromY = (float)DeathNotice_RowBaseY( notice.iPrevSlot, hud_deathnotice_row_gap );
-			const float toY = (float)DeathNotice_RowBaseY( i, hud_deathnotice_row_gap );
+			const float fromY = (float)DeathNotice_RowBaseY( notice.iPrevSlot, hud_deathnotice_row_gap, hud_deathnotice_y );
+			const float toY = (float)DeathNotice_RowBaseY( i, hud_deathnotice_row_gap, hud_deathnotice_y );
 			const int y = (int)( fromY + ( toY - fromY ) * slot + 0.5f );
 
 			int id = ( notice.iId == -1 ) ? m_HUD_d_skull : notice.iId;
@@ -255,7 +283,8 @@ int CHudDeathNotice :: Draw( float flTime )
 			const int victimWidth = notice.bNonPlayerKill ? 0 : DrawUtils::ConsoleStringLen( notice.szVictim );
 			const int rowWidth = killerWidth + weaponWidth + headshotWidth + victimWidth;
 			const int slideX = (int)( XRES( 24 ) * ( 1.0f - enter ) + 0.5f );
-			int x = ScreenWidth - rowWidth - DEATHNOTICE_RIGHT_PAD + slideX;
+			const int rightPad = DeathNotice_RightPad( hud_deathnotice_x );
+			int x = ScreenWidth - rowWidth - rightPad + slideX;
 
 			if( bgAlpha > 0 && fade > 0.0f )
 			{
@@ -464,6 +493,17 @@ int CHudDeathNotice :: MsgFunc_DeathMsg( const char *pszName, int iSize, void *p
 	}
 
 	g_DeathNoticeList.push_back( notice );
+	gHUD.m_KillMark.NotifyDeath(
+		killer,
+		victim,
+		killer_this_player || g_iUser2 == killer,
+		victim >= 1 && victim <= MAX_PLAYERS ? g_PlayerInfoList[victim].thisplayer : false,
+		notice.bSuicide,
+		notice.bTeamKill,
+		notice.bNonPlayerKill,
+		headshot != 0,
+		killedwith + 2
+	);
 
 	return 1;
 }

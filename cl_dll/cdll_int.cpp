@@ -41,6 +41,20 @@
 
 #include "cl_util.h"
 
+#ifndef MENUDLL
+#if defined( _WIN32 )
+#define MENUDLL "menu.dll"
+#elif defined( __ANDROID__ )
+	#if defined( LOAD_HARDFP )
+		#define MENUDLL "libmenu_hardfp.so"
+	#else
+		#define MENUDLL "libmenu.so"
+	#endif
+#else
+#define MENUDLL "libxashmenu.so"
+#endif
+#endif
+
 cl_enginefunc_t		gEngfuncs  = { };
 render_api_t		gRenderAPI = { };
 mobile_engfuncs_t	gMobileAPI = { };

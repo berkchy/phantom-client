@@ -4,9 +4,15 @@ import android.app.Activity;
 import android.content.ClipData;
 import android.content.ClipboardManager;
 import android.content.Intent;
+import android.content.res.AssetManager;
+import android.content.pm.PackageManager;
+import android.net.Uri;
+import android.os.Environment;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.provider.Settings;
 import android.text.Editable;
 import android.text.TextWatcher;
 import android.view.View;
@@ -18,6 +24,8 @@ import android.widget.TextView;
 
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
@@ -33,12 +41,19 @@ import com.google.android.material.appbar.MaterialToolbar;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipFile;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class LauncherActivity extends AppCompatActivity {
     private static final String TAG = "CS16Launcher";
+    private static final int REQ_STORAGE_ACCESS = 1201;
     public static final String EXTRA_GAME_DIR = "gameDir";
     public static final String EXTRA_GAME_TITLE = "gameTitle";
 
@@ -57,6 +72,7 @@ public class LauncherActivity extends AppCompatActivity {
     private final ExecutorService refreshExecutor = Executors.newSingleThreadExecutor();
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
     private final AtomicInteger refreshGeneration = new AtomicInteger(0);
+    private boolean storageAccessRequested;
 
     private String gameDir = "cstrike";
     private String gameTitle = "Counter-Strike";
@@ -117,9 +133,16 @@ public class LauncherActivity extends AppCompatActivity {
         bindServers();
         loadPreferences();
         applyGameHeader();
+        startAssetSyncIfPossible();
         updateCommandPreview();
         showPanel(PANEL_PLAY);
         appendMiniConsole("launcher ready");
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        startAssetSyncIfPossible();
     }
 
     @Override
@@ -328,7 +351,121 @@ public class LauncherActivity extends AppCompatActivity {
     private void launchSelectedAction() {
         savePreferences();
         String argv = buildArgv(selectedServer != null ? selectedServer.address : null);
+        startAssetSyncIfPossible();
         EngineLauncher.launchEngine(this, gameDir, argv);
+    }
+
+    private void startAssetSyncIfPossible() {
+        if (!hasAssetWriteAccess()) {
+            appendMiniConsole("launcher: storage access missing");
+            if (!storageAccessRequested) {
+                storageAccessRequested = true;
+                requestAssetWriteAccess();
+            }
+            return;
+        }
+        storageAccessRequested = false;
+        appendMiniConsole("launcher: asset sync starting");
+        new Thread(this::ensureGameAssetsInstalled, "AssetSync").start();
+    }
+
+    private boolean hasAssetWriteAccess() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            return Environment.isExternalStorageManager();
+        }
+        return ContextCompat.checkSelfPermission(this, android.Manifest.permission.WRITE_EXTERNAL_STORAGE)
+                == PackageManager.PERMISSION_GRANTED;
+    }
+
+    private void requestAssetWriteAccess() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            try {
+                Intent intent = new Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION);
+                intent.setData(Uri.parse("package:" + getPackageName()));
+                startActivity(intent);
+            } catch (Exception e) {
+                appendMiniConsole("launcher: storage settings unavailable " + e.getMessage());
+            }
+            return;
+        }
+        ActivityCompat.requestPermissions(this,
+                new String[]{android.Manifest.permission.WRITE_EXTERNAL_STORAGE},
+                REQ_STORAGE_ACCESS);
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @Nullable String[] permissions, @Nullable int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if (requestCode != REQ_STORAGE_ACCESS) {
+            return;
+        }
+        boolean granted = grantResults != null && grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED;
+        appendMiniConsole(granted ? "launcher: storage access granted" : "launcher: storage access denied");
+        if (granted) {
+            startAssetSyncIfPossible();
+        }
+    }
+
+    private void ensureGameAssetsInstalled() {
+        File gameRoot = new File(Environment.getExternalStorageDirectory(), "xash/" + gameDir);
+        try (ZipFile apk = new ZipFile(getPackageCodePath())) {
+            syncAssetTree(apk, "sprites", new File(gameRoot, "sprites"));
+            syncAssetTree(apk, "sound/vox", new File(gameRoot, "sound/vox"));
+        } catch (IOException e) {
+            appendMiniConsole("launcher: asset sync failed open apk " + e.getMessage());
+        }
+        appendMiniConsole("launcher: asset sync finished");
+    }
+
+    private void syncAssetTree(ZipFile apk, String assetPath, File target) {
+        AssetManager assets = getAssets();
+        try {
+            String[] children = assets.list(assetPath);
+            if (children != null && children.length > 0) {
+                if (!target.exists() && !target.mkdirs()) {
+                    appendMiniConsole("launcher: failed to create dir " + target.getAbsolutePath());
+                    return;
+                }
+                for (String child : children) {
+                    String childAssetPath = assetPath.isEmpty() ? child : assetPath + "/" + child;
+                    syncAssetTree(apk, childAssetPath, new File(target, child));
+                }
+                return;
+            }
+
+            File parent = target.getParentFile();
+            if (parent != null && !parent.exists() && !parent.mkdirs()) {
+                appendMiniConsole("launcher: failed to create dir " + parent.getAbsolutePath());
+                return;
+            }
+
+            ZipEntry entry = apk.getEntry("assets/" + assetPath);
+            long srcSize = entry != null ? entry.getSize() : -1;
+            long srcTime = entry != null ? entry.getTime() : -1;
+            if (target.exists() && target.isFile()) {
+                boolean sizeMatches = srcSize >= 0 && target.length() == srcSize;
+                boolean timeMatches = srcTime < 0 || target.lastModified() == srcTime;
+                if (sizeMatches && timeMatches) {
+                    appendMiniConsole("launcher: asset up to date " + assetPath);
+                    return;
+                }
+            }
+
+            try (InputStream in = assets.open(assetPath);
+                 FileOutputStream out = new FileOutputStream(target)) {
+                byte[] buffer = new byte[8192];
+                int read;
+                while ((read = in.read(buffer)) != -1) {
+                    out.write(buffer, 0, read);
+                }
+                if (srcTime > 0) {
+                    target.setLastModified(srcTime);
+                }
+                appendMiniConsole("launcher: synced asset " + assetPath);
+            }
+        } catch (IOException e) {
+            appendMiniConsole("launcher: asset sync failed " + assetPath + " " + e.getMessage());
+        }
     }
 
     private void refreshServers() {

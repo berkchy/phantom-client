@@ -416,6 +416,7 @@ void CHud :: Init( void )
 	m_Message.Init();
 	m_StatusBar.Init();
 	m_DeathNotice.Init();
+	m_KillMark.Init();
 	m_TextMessage.Init();
 	m_MOTD.Init();
 
