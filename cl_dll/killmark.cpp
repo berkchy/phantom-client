@@ -44,14 +44,132 @@ static const char *KillMark_ResolveCandidate( const char *const *paths, int coun
 	return ( count > 0 ) ? paths[0] : "";
 }
 
-static void KillMark_DrawHudSprite( HSPRITE sprite, const wrect_t *prc, int x, int y, int alpha )
+static int KillMark_RectScaledWidth( const wrect_t *prc, float scale )
+{
+	if( !prc )
+		return 0;
+
+	return max( 1, (int)( ( prc->right - prc->left ) * scale + 0.5f ) );
+}
+
+static int KillMark_RectScaledHeight( const wrect_t *prc, float scale )
+{
+	if( !prc )
+		return 0;
+
+	return max( 1, (int)( ( prc->bottom - prc->top ) * scale + 0.5f ) );
+}
+
+static void KillMark_DrawHudSprite( HSPRITE sprite, const wrect_t *prc, int x, int y, int alpha, float scale )
 {
 	if( !sprite || !prc )
 		return;
 
 	alpha = KillMark_ClampInt( alpha, 0, 255 );
 	SPR_Set( sprite, alpha, alpha, alpha );
-	SPR_DrawAdditive( 0, x, y, prc );
+	scale = KillMark_ClampFloat( scale, 0.1f, 5.0f );
+	if( scale != 1.0f && gEngfuncs.pfnSPR_DrawAdditiveScale )
+		gEngfuncs.pfnSPR_DrawAdditiveScale( 0, x, y, prc, scale );
+	else
+		SPR_DrawAdditive( 0, x, y, prc );
+}
+
+static int KillMark_DigitWidth( const wrect_t *prc, float scale )
+{
+	if( !prc )
+		return 0;
+
+	return max( 1, (int)( ( prc->right - prc->left ) * scale + 0.5f ) );
+}
+
+static void KillMark_BuildNumberStrip( const wrect_t &stripRect, wrect_t *digits, int digitCount )
+{
+	if( !digits || digitCount <= 0 )
+		return;
+
+	const int totalWidth = stripRect.right - stripRect.left;
+	const int digitWidth = digitCount > 0 ? totalWidth / digitCount : 0;
+	if( digitWidth <= 0 )
+		return;
+
+	for( int i = 0; i < digitCount; ++i )
+	{
+		digits[i].left = stripRect.left + i * digitWidth;
+		digits[i].top = stripRect.top;
+		digits[i].right = ( i + 1 == digitCount ) ? stripRect.right : ( digits[i].left + digitWidth );
+		digits[i].bottom = stripRect.bottom;
+	}
+}
+
+static int KillMark_DrawScaledNumberSprite( HSPRITE sprite, const wrect_t *digitRects, int digitCount, int x, int y, int number, int r, int g, int b, int a, float scale )
+{
+	if( !sprite || !digitRects || digitCount <= 0 )
+		return x;
+
+	char buffer[16];
+	snprintf( buffer, sizeof( buffer ), "%d", number );
+
+	const int digits = (int)strlen( buffer );
+	if( digits <= 0 )
+		return x;
+
+	int drawX = x;
+	const int fade = KillMark_ClampInt( a, 0, 255 );
+	for( int i = 0; i < digits; ++i )
+	{
+		const int digit = buffer[i] - '0';
+		if( digit < 0 || digit >= digitCount )
+			continue;
+
+		const wrect_t &rect = digitRects[digit];
+		const int digitWidth = KillMark_DigitWidth( &rect, scale );
+
+		SPR_Set( sprite, fade * r / 255, fade * g / 255, fade * b / 255 );
+		if( gEngfuncs.pfnSPR_DrawAdditiveScale )
+			gEngfuncs.pfnSPR_DrawAdditiveScale( 0, drawX, y, &rect, scale );
+		else
+			SPR_DrawAdditive( 0, drawX, y, &rect );
+
+		drawX += digitWidth + 1;
+	}
+
+	return drawX;
+}
+
+static int KillMark_CalcScaledNumberWidth( const wrect_t *digitRects, int digitCount, int number, float scale )
+{
+	if( !digitRects || digitCount <= 0 )
+		return 0;
+
+	char buffer[16];
+	snprintf( buffer, sizeof( buffer ), "%d", number );
+
+	const int digits = (int)strlen( buffer );
+	if( digits <= 0 )
+		return 0;
+
+	int totalWidth = 0;
+	for( int i = 0; i < digits; ++i )
+	{
+		const int digit = buffer[i] - '0';
+		if( digit < 0 || digit >= digitCount )
+			continue;
+
+		const wrect_t &rect = digitRects[digit];
+		totalWidth += KillMark_DigitWidth( &rect, scale );
+		if( i + 1 < digits )
+			totalWidth += 1;
+	}
+
+	return totalWidth;
+}
+
+static HSPRITE KillMark_LoadSpriteNearest( const char *path )
+{
+	if( gRenderAPI.SPR_LoadExt )
+		return gRenderAPI.SPR_LoadExt( path, TF_NEAREST | TF_NOMIPMAP );
+
+	return SPR_Load( path );
 }
 
 static int KillMark_RectWidth( const wrect_t *prc )
@@ -158,6 +276,8 @@ int CHudKillMark::Init( void )
 	hud_killmark_x = CVAR_CREATE( "hud_killmark_x", "0", FCVAR_ARCHIVE );
 	hud_killmark_y = CVAR_CREATE( "hud_killmark_y", "0", FCVAR_ARCHIVE );
 	hud_killmark_num_scale = CVAR_CREATE( "hud_killmark_num_scale", "1.18", FCVAR_ARCHIVE );
+	hud_killmark_text_scale = CVAR_CREATE( "hud_killmark_text_scale", "1.0", FCVAR_ARCHIVE );
+	hud_killmark_icon_scale = CVAR_CREATE( "hud_killmark_icon_scale", "1.0", FCVAR_ARCHIVE );
 	hud_killmark_fadein_time = CVAR_CREATE( "hud_killmark_fadein_time", "0.16", FCVAR_ARCHIVE );
 	hud_killmark_hold_time = CVAR_CREATE( "hud_killmark_hold_time", "1.13", FCVAR_ARCHIVE );
 	hud_killmark_fadeout_time = CVAR_CREATE( "hud_killmark_fadeout_time", "0.16", FCVAR_ARCHIVE );
@@ -218,7 +338,7 @@ int CHudKillMark::DrawHudNumber( HSPRITE sprite, const wrect_t *prc, int x, int 
 	if( !sprite || !prc )
 		return x;
 
-	scale = KillMark_ClampFloat( scale, 0.5f, 2.5f );
+	scale = KillMark_ClampFloat( scale, 0.5f, 3.0f );
 	char buffer[16];
 	snprintf( buffer, sizeof( buffer ), "%d", iNumber );
 
@@ -261,17 +381,8 @@ int CHudKillMark::DrawHudNumber( HSPRITE sprite, const wrect_t *prc, int x, int 
 
 int CHudKillMark::VidInit( void )
 {
-	m_hNumSprite = SPR_Load( "sprites/scoreboard_text.spr" );
-	m_hTextSprite = m_hNumSprite;
-	m_hKillSprite = SPR_Load( "sprites/kill.spr" );
-	wrect_t numberStrip = { 0, 0, 0, 0 };
-	if( !KillMark_LoadHudRect( "SBNum_L", &numberStrip ) )
-		KillMark_LoadHudRect( "SBNum_S", &numberStrip );
-
-	if( numberStrip.Width() > 0 && numberStrip.Height() > 0 )
-		BuildHudNumberRect( m_rcNumber, numberStrip.Width() / 10, numberStrip.Height(), 0, 0 );
-	else
-		BuildHudNumberRect( m_rcNumber, 13, 13, 0, 0 );
+	m_hKillSprite = KillMark_LoadSpriteNearest( "sprites/kill.spr" );
+	m_hNumSprite = KillMark_LoadSpriteNearest( "sprites/scoreboard_text.spr" );
 
 	m_rcKillText = kKillTextRect;
 	m_rcFirstBloodText = kFirstBloodTextRect;
@@ -279,19 +390,16 @@ int CHudKillMark::VidInit( void )
 	m_rcIconKnife = kKillIconKnifeRect;
 	m_rcIconFrag = kKillIconFragRect;
 
+	wrect_t numberStripRect = { 0, 0, 0, 0 };
+	if( !KillMark_LoadHudRect( "SBNum_L", &numberStripRect ) )
+		KillMark_LoadHudRect( "SBNum_S", &numberStripRect );
+	KillMark_BuildNumberStrip( numberStripRect, m_rcNumber, 10 );
+
 	KillMark_LoadHudRect( "SBText_1st", &m_rcFirstBloodText );
 	KillMark_LoadHudRect( "KM_KillText", &m_rcKillText );
 	KillMark_LoadHudRect( "KM_Icon_Head", &m_rcIconHead );
 	KillMark_LoadHudRect( "KM_Icon_knife", &m_rcIconKnife );
 	KillMark_LoadHudRect( "KM_Icon_Frag", &m_rcIconFrag );
-
-	KillMark_LogRect( "SBText_Kill", m_rcKillText );
-	KillMark_LogRect( "SBText_1st", m_rcFirstBloodText );
-	KillMark_LogRect( "KM_Icon_Head", m_rcIconHead );
-	KillMark_LogRect( "KM_Icon_knife", m_rcIconKnife );
-	KillMark_LogRect( "KM_Icon_Frag", m_rcIconFrag );
-	KillMark_LogRect( "SBNum_0", m_rcNumber[0] );
-	KillMark_LogRect( "SBNum_1", m_rcNumber[1] );
 
 	for( int i = 0; i < 13; ++i )
 		m_pszKillSounds[i] = ResolveSoundCandidate( kKillCountSoundCandidates[i], 2 );
@@ -421,75 +529,48 @@ int CHudKillMark::Draw( float flTime )
 			iconRect = &m_rcIconFrag;
 	}
 
-	const wrect_t *killTextRect = m_bCurrentFirstBlood ? &m_rcFirstBloodText : &m_rcKillText;
-	const HSPRITE killTextSprite = m_bCurrentFirstBlood ? m_hTextSprite : m_hKillSprite;
-	const int killTextWidth = KillMark_RectWidth( killTextRect );
-	const int killTextHeight = KillMark_RectHeight( killTextRect );
-	const int iconWidth = iconRect ? KillMark_RectWidth( iconRect ) : 0;
-	const int iconHeight = iconRect ? KillMark_RectHeight( iconRect ) : 0;
-	const float killmarkScale = hud_killmark_num_scale ? hud_killmark_num_scale->value : 1.18f;
+	const wrect_t *killTextRect = &m_rcKillText;
+	const HSPRITE killTextSprite = m_hKillSprite;
+	const float killTextScale = KillMark_ClampFloat( hud_killmark_text_scale ? hud_killmark_text_scale->value : 1.0f, 0.25f, 5.0f );
+	const int killTextWidth = KillMark_RectScaledWidth( killTextRect, killTextScale );
+	const int killTextHeight = KillMark_RectScaledHeight( killTextRect, killTextScale );
+	const float numberScale = KillMark_ClampFloat( hud_killmark_num_scale ? hud_killmark_num_scale->value : 1.0f, 0.5f, 3.0f );
+	const int countWidth = KillMark_CalcScaledNumberWidth( m_rcNumber, 10, m_iKillCount, numberScale );
+	const int countHeight = KillMark_RectScaledHeight( &m_rcNumber[0], numberScale );
+	const float iconScale = KillMark_ClampFloat( hud_killmark_icon_scale ? hud_killmark_icon_scale->value : 1.0f, 0.25f, 5.0f );
+	const int iconWidth = iconRect ? KillMark_RectScaledWidth( iconRect, iconScale ) : 0;
+	const int iconHeight = iconRect ? KillMark_RectScaledHeight( iconRect, iconScale ) : 0;
 
-	int numberWidth = 0;
-	int numberHeight = 0;
-	const bool useHudDigits = ( m_hNumSprite != 0 );
-	const int displayCount = KillMark_ClampInt( m_iKillCount, 1, 13 );
-
-	if( useHudDigits )
-	{
-		char countBuffer[16];
-		snprintf( countBuffer, sizeof( countBuffer ), "%d", displayCount );
-		for( const char *p = countBuffer; *p; ++p )
-		{
-			const int frame = *p - '0';
-			if( frame < 0 || frame > 9 )
-				continue;
-
-			numberWidth += m_rcNumber[frame].right - m_rcNumber[frame].left;
-			if( p[1] )
-				numberWidth += 1;
-
-			const int h = m_rcNumber[frame].bottom - m_rcNumber[frame].top;
-			if( h > numberHeight )
-				numberHeight = h;
-		}
-	}
-
-	const int textGap = ( m_iKillCount > 0 && useHudDigits ) ? 4 : 0;
 	const int iconGap = iconRect ? 2 : 0;
-	const int topWidth = ( m_iKillCount > 0 && useHudDigits ) ? ( numberWidth + textGap + killTextWidth ) : killTextWidth;
-	const int topHeight = max( numberHeight, killTextHeight );
+	const int countGap = countWidth > 0 ? 3 : 0;
+	const int topWidth = killTextWidth + countGap + countWidth;
+	const int topHeight = max( killTextHeight, countHeight );
 	const int totalHeight = topHeight + iconGap + iconHeight;
 	const int centerX = ( ScreenWidth / 2 ) + ( hud_killmark_x ? (int)hud_killmark_x->value : 0 );
 	const int baseY = ( ScreenHeight / 2 ) - YRES( 45 ) - (int)( YRES( 12 ) * ( 1.0f - fadeIn ) + 0.5f )
 		+ ( hud_killmark_y ? (int)hud_killmark_y->value : 0 );
 	const int yTop = baseY - totalHeight / 2;
 
-	if( m_iKillCount != m_iLastLoggedKillCount )
-	{
-		gEngfuncs.Con_Printf( "KillMark draw: raw=%d display=%d firstblood=%d numSprite=%d textSprite=%d killSprite=%d\n",
-			m_iKillCount, displayCount, m_bCurrentFirstBlood ? 1 : 0, m_hNumSprite != 0, m_hTextSprite != 0, m_hKillSprite != 0 );
-		KillMark_LogRect( "draw.m_rcKillText", m_rcKillText );
-		KillMark_LogRect( "draw.m_rcFirstBloodText", m_rcFirstBloodText );
-		KillMark_LogRect( "draw.m_rcIconHead", m_rcIconHead );
-		KillMark_LogRect( "draw.m_rcIconKnife", m_rcIconKnife );
-		KillMark_LogRect( "draw.m_rcIconFrag", m_rcIconFrag );
-		m_iLastLoggedKillCount = m_iKillCount;
-	}
-
 	int xTop = centerX - topWidth / 2;
 
-	if( m_iKillCount > 0 && useHudDigits )
+	if( countWidth > 0 )
 	{
-		xTop = DrawHudNumber( m_hNumSprite, m_rcNumber, xTop, yTop + ( topHeight - numberHeight ) / 2, displayCount, alpha, alpha, alpha, alpha, killmarkScale );
-		xTop += textGap;
+		const int countY = yTop + ( topHeight - countHeight ) / 2;
+		KillMark_DrawScaledNumberSprite( m_hNumSprite, m_rcNumber, 10, xTop, countY, m_iKillCount, 255, 255, 255, alpha, numberScale );
 	}
 
-	KillMark_DrawHudSprite( killTextSprite, killTextRect, xTop, yTop + ( topHeight - killTextHeight ) / 2, alpha );
+	const int killTextX = xTop + countWidth + countGap;
+	const int killTextY = yTop + ( topHeight - killTextHeight ) / 2;
+	KillMark_DrawHudSprite( killTextSprite, killTextRect, killTextX, killTextY, alpha, killTextScale );
 
 	const int iconX = centerX - iconWidth / 2;
 	const int iconY = yTop + topHeight + iconGap;
 	if( iconRect )
-		KillMark_DrawHudSprite( m_hKillSprite, iconRect, iconX, iconY, alpha );
+	{
+		const int iconDrawX = centerX - iconWidth / 2;
+		const int iconDrawY = yTop + topHeight + iconGap;
+		KillMark_DrawHudSprite( m_hKillSprite, iconRect, iconDrawX, iconDrawY, alpha, iconScale );
+	}
 
 	return 1;
 }

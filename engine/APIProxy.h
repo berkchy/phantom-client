@@ -359,6 +359,7 @@ typedef int						(*pfnEngSrc_pfnImGui_GetTextWidth_t)	( const char *text, float 
 typedef void					(*pfnEngSrc_pfnShellExecute_t)		( const char *path, const char *parms );
 typedef int						(*pfnEngSrc_pfnShowHtmlMotd_t)		( const char *html, const char *baseUrl, const char *serverName, int x, int y, int width, int height );
 typedef void					(*pfnEngSrc_pfnHideHtmlMotd_t)		( void );
+typedef void					(*pfnEngSrc_pfnSPR_DrawAdditiveScale_t)( int frame, int x, int y, const struct rect_s *prc, float scale );
 
 // Pointers to the exported engine functions themselves
 typedef struct cl_enginefuncs_s
@@ -503,6 +504,7 @@ typedef struct cl_enginefuncs_s
 	pfnEngSrc_pfnShellExecute_t				pfnShellExecute;
 	pfnEngSrc_pfnShowHtmlMotd_t				pfnShowHtmlMotd;
 	pfnEngSrc_pfnHideHtmlMotd_t				pfnHideHtmlMotd;
+	pfnEngSrc_pfnSPR_DrawAdditiveScale_t	pfnSPR_DrawAdditiveScale;
 } cl_enginefunc_t;
 
 // Function type declarations for engine destination functions

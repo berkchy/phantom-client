@@ -51,6 +51,45 @@ int g_weaponselect = 0;
 int g_weaponselect_frames = 0;
 int g_iShotsFired;
 
+static HSPRITE Ammo_LoadSpriteNearest( const char *path )
+{
+	if( gRenderAPI.SPR_LoadExt )
+		return gRenderAPI.SPR_LoadExt( path, TF_NEAREST | TF_NOMIPMAP );
+
+	return SPR_Load( path );
+}
+
+static float Ammo_ClampFloat( float value, float minValue, float maxValue )
+{
+	if( value < minValue )
+		return minValue;
+	if( value > maxValue )
+		return maxValue;
+	return value;
+}
+
+static bool Ammo_GetHudIconName( const char *weaponName, char *out, size_t outSize )
+{
+	if( !weaponName || !weaponName[0] || !out || outSize == 0 )
+		return false;
+
+	const char *name = weaponName;
+	if( !strncmp( name, "weapon_", 7 ) )
+		name += 7;
+
+	if( !strcmp( name, "hegrenade" ) || !strcmp( name, "grenade" ) || !strcmp( name, "flashbang" ) || !strcmp( name, "smokegrenade" ) )
+		snprintf( out, outSize, "d_grenade" );
+	else if( !strcmp( name, "c4" ) )
+		snprintf( out, outSize, "smallc4" );
+	else if( !strncmp( name, "d_", 2 ) )
+		snprintf( out, outSize, "%s", name );
+	else
+		snprintf( out, outSize, "d_%s", name );
+
+	out[outSize - 1] = 0;
+	return true;
+}
+
 void WeaponsResource :: LoadAllWeaponSprites( void )
 {
 	for( int i = 0; i < MAX_WEAPONS; i++ )
@@ -114,7 +153,7 @@ void WeaponsResource :: LoadWeaponSprites( WEAPON *pWeapon )
 	if (p)
 	{
 		snprintf(sz, sizeof(sz), "sprites/%s.spr", p->szSprite);
-		pWeapon->hCrosshair = SPR_Load(sz);
+		pWeapon->hCrosshair = Ammo_LoadSpriteNearest( sz );
 		pWeapon->rcCrosshair = p->rc;
 	}
 	else
@@ -124,7 +163,7 @@ void WeaponsResource :: LoadWeaponSprites( WEAPON *pWeapon )
 	if (p)
 	{
 		snprintf(sz, sizeof(sz), "sprites/%s.spr", p->szSprite);
-		pWeapon->hAutoaim = SPR_Load(sz);
+		pWeapon->hAutoaim = Ammo_LoadSpriteNearest( sz );
 		pWeapon->rcAutoaim = p->rc;
 	}
 	else
@@ -134,7 +173,7 @@ void WeaponsResource :: LoadWeaponSprites( WEAPON *pWeapon )
 	if (p)
 	{
 		snprintf(sz, sizeof(sz), "sprites/%s.spr", p->szSprite);
-		pWeapon->hZoomedCrosshair = SPR_Load(sz);
+		pWeapon->hZoomedCrosshair = Ammo_LoadSpriteNearest( sz );
 		pWeapon->rcZoomedCrosshair = p->rc;
 	}
 	else
@@ -147,7 +186,7 @@ void WeaponsResource :: LoadWeaponSprites( WEAPON *pWeapon )
 	if (p)
 	{
 		snprintf(sz, sizeof(sz), "sprites/%s.spr", p->szSprite);
-		pWeapon->hZoomedAutoaim = SPR_Load(sz);
+		pWeapon->hZoomedAutoaim = Ammo_LoadSpriteNearest( sz );
 		pWeapon->rcZoomedAutoaim = p->rc;
 	}
 	else
@@ -160,7 +199,7 @@ void WeaponsResource :: LoadWeaponSprites( WEAPON *pWeapon )
 	if (p)
 	{
 		snprintf(sz, sizeof(sz), "sprites/%s.spr", p->szSprite);
-		pWeapon->hInactive = SPR_Load(sz);
+		pWeapon->hInactive = Ammo_LoadSpriteNearest( sz );
 		pWeapon->rcInactive = p->rc;
 
 		gHR.iHistoryGap = max( gHR.iHistoryGap, pWeapon->rcActive.Height() );
@@ -172,7 +211,7 @@ void WeaponsResource :: LoadWeaponSprites( WEAPON *pWeapon )
 	if (p)
 	{
 		snprintf(sz, sizeof(sz), "sprites/%s.spr", p->szSprite);
-		pWeapon->hActive = SPR_Load(sz);
+		pWeapon->hActive = Ammo_LoadSpriteNearest( sz );
 		pWeapon->rcActive = p->rc;
 	}
 	else
@@ -182,7 +221,7 @@ void WeaponsResource :: LoadWeaponSprites( WEAPON *pWeapon )
 	if (p)
 	{
 		snprintf(sz, sizeof(sz), "sprites/%s.spr", p->szSprite);
-		pWeapon->hAmmo = SPR_Load(sz);
+		pWeapon->hAmmo = Ammo_LoadSpriteNearest( sz );
 		pWeapon->rcAmmo = p->rc;
 
 		gHR.iHistoryGap = max( gHR.iHistoryGap, pWeapon->rcActive.Height() );
@@ -194,7 +233,7 @@ void WeaponsResource :: LoadWeaponSprites( WEAPON *pWeapon )
 	if (p)
 	{
 		snprintf(sz, sizeof(sz), "sprites/%s.spr", p->szSprite);
-		pWeapon->hAmmo2 = SPR_Load(sz);
+		pWeapon->hAmmo2 = Ammo_LoadSpriteNearest( sz );
 		pWeapon->rcAmmo2 = p->rc;
 
 		gHR.iHistoryGap = max( gHR.iHistoryGap, pWeapon->rcActive.Height() );
@@ -202,26 +241,16 @@ void WeaponsResource :: LoadWeaponSprites( WEAPON *pWeapon )
 	else
 		pWeapon->hAmmo2 = 0;
 
+	char hudIconName[64];
+	if( Ammo_GetHudIconName( pWeapon->szName, hudIconName, sizeof( hudIconName ) ) )
 	{
-		char hudName[256];
-		const char *iconName = pWeapon->szName;
-		if( !stricmp( iconName, "hegrenade" ) || !stricmp( iconName, "grenade" ) )
-			iconName = "grenade";
-
-		snprintf( hudName, sizeof( hudName ), "d_%s", iconName );
-		int hudIndex = gHUD.GetSpriteIndex( hudName );
-		if( hudIndex >= 0 )
+		const int hudIconIndex = gHUD.GetSpriteIndex( hudIconName );
+		if( hudIconIndex > 0 )
 		{
-			pWeapon->hHudIcon = gHUD.GetSprite( hudIndex );
-			pWeapon->rcHudIcon = gHUD.GetSpriteRect( hudIndex );
-		}
-		else
-		{
-			pWeapon->hHudIcon = 0;
-			memset( &pWeapon->rcHudIcon, 0, sizeof( wrect_t ) );
+			pWeapon->hHudIcon = gHUD.GetSprite( hudIconIndex );
+			pWeapon->rcHudIcon = gHUD.GetSpriteRect( hudIconIndex );
 		}
 	}
-
 }
 
 // Returns the first weapon for a given slot.
@@ -337,6 +366,9 @@ int CHudAmmo::Init(void)
 
 	xhair_color = CVAR_CREATE( "xhair_color", "0 255 0 255", FCVAR_ARCHIVE );
 	xhair_additive = CVAR_CREATE( "xhair_additive", "0", FCVAR_ARCHIVE );
+	hud_weaponicon_x = CVAR_CREATE( "hud_weaponicon_x", "0", FCVAR_ARCHIVE );
+	hud_weaponicon_y = CVAR_CREATE( "hud_weaponicon_y", "0", FCVAR_ARCHIVE );
+	hud_weaponicon_scale = CVAR_CREATE( "hud_weaponicon_scale", "1.0", FCVAR_ARCHIVE );
 
 	return 1;
 }
@@ -1105,7 +1137,6 @@ int CHudAmmo::Draw(float flTime)
 	if (m_pWeapon->iAmmoType > 0)
 	{
 		int iIconWidth = m_pWeapon->rcAmmo.Width();
-		int iIconHeight = m_pWeapon->rcHudIcon.Height();
 		
 		if (pw->iClip >= 0)
 		{
@@ -1145,11 +1176,20 @@ int CHudAmmo::Draw(float flTime)
 		SPR_Set(m_pWeapon->hAmmo, r, g, b);
 		SPR_DrawAdditive(0, weaponIconX, weaponIconY, &m_pWeapon->rcAmmo);
 
-		if( m_pWeapon->hHudIcon && m_pWeapon->rcHudIcon.Width() > 0 && iIconHeight > 0 )
+		// Draw the weapon HUD icon above the ammo icon, if available.
+		if( m_pWeapon->hHudIcon && m_pWeapon->rcHudIcon.Width() > 0 && m_pWeapon->rcHudIcon.Height() > 0 )
 		{
-			int weaponSpriteY = weaponIconY - iIconHeight - YRES( 4 );
+			const float weaponIconScale = Ammo_ClampFloat( hud_weaponicon_scale ? hud_weaponicon_scale->value : 1.0f, 0.25f, 3.0f );
+			const int weaponIconWidth = max( 1, (int)( m_pWeapon->rcHudIcon.Width() * weaponIconScale + 0.5f ) );
+			const int weaponIconHeight = max( 1, (int)( m_pWeapon->rcHudIcon.Height() * weaponIconScale + 0.5f ) );
+			const int weaponHudX = weaponIconX + ( m_pWeapon->rcAmmo.Width() - weaponIconWidth ) / 2 + ( hud_weaponicon_x ? (int)hud_weaponicon_x->value : 0 );
+			const int weaponHudY = weaponIconY - weaponIconHeight - 2 + ( hud_weaponicon_y ? (int)hud_weaponicon_y->value : 0 );
+
 			SPR_Set( m_pWeapon->hHudIcon, r, g, b );
-			SPR_DrawAdditive( 0, weaponIconX, weaponSpriteY, &m_pWeapon->rcHudIcon );
+			if( gEngfuncs.pfnSPR_DrawAdditiveScale )
+				SPR_DrawAdditiveScale( 0, weaponHudX, weaponHudY, &m_pWeapon->rcHudIcon, weaponIconScale );
+			else
+				SPR_DrawAdditive( 0, weaponHudX, weaponHudY, &m_pWeapon->rcHudIcon );
 		}
 	}
 

@@ -47,6 +47,14 @@ cvar_t *cl_fog_density;
 
 extern client_sprite_t *GetSpriteList(client_sprite_t *pList, const char *psz, int iRes, int iCount);
 
+static HSPRITE LoadHudSpriteNearest( const char *path )
+{
+	if( gRenderAPI.SPR_LoadExt )
+		return gRenderAPI.SPR_LoadExt( path, TF_NEAREST | TF_NOMIPMAP );
+
+	return SPR_Load( path );
+}
+
 // Team Colors
 int iNumberOfTeamColors = 3;
 int iTeamColors[3][3] =
@@ -515,7 +523,7 @@ void CHud :: VidInit( void )
 				{
 					char sz[256];
 					sprintf(sz, "sprites/%s.spr", p->szSprite);
-					m_rghSprites[index] = SPR_Load(sz);
+					m_rghSprites[index] = LoadHudSpriteNearest( sz );
 					m_rgrcRects[index] = p->rc;
 					strncpy( &m_rgszSpriteNames[index * MAX_SPRITE_NAME_LENGTH], p->szName, MAX_SPRITE_NAME_LENGTH );
 
@@ -538,7 +546,7 @@ void CHud :: VidInit( void )
 			{
 				char sz[256];
 				sprintf( sz, "sprites/%s.spr", p->szSprite );
-				m_rghSprites[index] = SPR_Load(sz);
+				m_rghSprites[index] = LoadHudSpriteNearest( sz );
 				index++;
 			}
 
@@ -564,7 +572,7 @@ void CHud :: VidInit( void )
 	m_iFontWidth  = GetSpriteRect(m_HUD_number_0).Width();
 	m_iFontHeight = GetSpriteRect(m_HUD_number_0).Height();
 
-	m_hGasPuff = SPR_Load("sprites/gas_puff_01.spr");
+	m_hGasPuff = LoadHudSpriteNearest( "sprites/gas_puff_01.spr" );
 
 	for( HUDLIST *pList = m_pHudList; pList; pList = pList->pNext )
 		pList->p->VidInit();

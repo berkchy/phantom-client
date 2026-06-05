@@ -54,6 +54,8 @@ inline struct cvar_s *CVAR_CREATE( const char *cv, const char *val, const int fl
 #define SPR_DrawHoles (*gEngfuncs.pfnSPR_DrawHoles)
 // SPR_DrawAdditive  adds the sprites RGB values to the background  (additive transulency)
 #define SPR_DrawAdditive (*gEngfuncs.pfnSPR_DrawAdditive)
+// SPR_DrawAdditiveScale  draws additive sprites with a custom scale factor
+#define SPR_DrawAdditiveScale (*gEngfuncs.pfnSPR_DrawAdditiveScale)
 
 // SPR_EnableScissor  sets a clipping rect for HUD sprites.  (0,0) is the top-left hand corner of the screen.
 #define SPR_EnableScissor (*gEngfuncs.pfnSPR_EnableScissor)

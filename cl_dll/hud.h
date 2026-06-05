@@ -253,6 +253,9 @@ private:
 	cvar_t *xhair_dynamic_scale;
 	cvar_t *xhair_gap_useweaponvalue;
 	cvar_t *xhair_dynamic_move;
+	cvar_t *hud_weaponicon_x;
+	cvar_t *hud_weaponicon_y;
+	cvar_t *hud_weaponicon_scale;
 
 	cvar_t *xhair_color;
 	cvar_t *xhair_additive;
@@ -555,6 +558,8 @@ private:
 	cvar_t *hud_killmark_x;
 	cvar_t *hud_killmark_y;
 	cvar_t *hud_killmark_num_scale;
+	cvar_t *hud_killmark_text_scale;
+	cvar_t *hud_killmark_icon_scale;
 	cvar_t *hud_killmark_fadein_time;
 	cvar_t *hud_killmark_hold_time;
 	cvar_t *hud_killmark_fadeout_time;

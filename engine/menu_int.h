@@ -68,6 +68,16 @@ typedef struct ui_enginefuncs_s
 	void	(*pfnPIC_DrawAdditive)( int x, int y, int width, int height, const wrect_t *prc );
 	void	(*pfnPIC_EnableScissor)( int x, int y, int width, int height );
 	void	(*pfnPIC_DisableScissor)( void );
+	HIMAGE	(*pfnSPR_Load)( const char *szPicName );
+	int	(*pfnSPR_Frames)( HIMAGE hPic );
+	int	(*pfnSPR_Width)( HIMAGE hPic, int frame );
+	int	(*pfnSPR_Height)( HIMAGE hPic, int frame );
+	void	(*pfnSPR_Set)( HIMAGE hPic, int r, int g, int b, int a );
+	void	(*pfnSPR_Draw)( int frame, int x, int y, const wrect_t *prc );
+	void	(*pfnSPR_DrawHoles)( int frame, int x, int y, const wrect_t *prc );
+	void	(*pfnSPR_DrawTrans)( int frame, int x, int y, const wrect_t *prc );
+	void	(*pfnSPR_DrawAdditive)( int frame, int x, int y, const wrect_t *prc );
+	void	(*pfnSPR_DrawAdditiveScale)( int frame, int x, int y, const wrect_t *prc, float scale );
 
 	// screen handlers
 	void	(*pfnFillRGBA)( int x, int y, int width, int height, int r, int g, int b, int a );
