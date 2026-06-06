@@ -50,8 +50,18 @@ void UI_Main_LoadBrandFont()
 
 	if( EngFuncs::textfuncs.pfnImGui_LoadFontHandle )
 	{
-		g_iMainMenuBrandFont = EngFuncs::textfuncs.pfnImGui_LoadFontHandle( MAIN_MENU_BRAND_FONT_PATH, MAIN_MENU_BRAND_FONT_H );
-		Con_Printf( "ImGui: main menu brand font %s handle=%d\n", MAIN_MENU_BRAND_FONT_PATH, g_iMainMenuBrandFont );
+		const char *candidates[] = {
+			MAIN_MENU_BRAND_FONT_PATH,
+			"gfx/fonts/FiraSans-Regular.ttf",
+			"gfx/fonts/tahoma.ttf"
+		};
+		for( size_t i = 0; i < sizeof( candidates ) / sizeof( candidates[0] ); ++i )
+		{
+			g_iMainMenuBrandFont = EngFuncs::textfuncs.pfnImGui_LoadFontHandle( candidates[i], MAIN_MENU_BRAND_FONT_H );
+			Con_Printf( "ImGui: main menu brand font %s handle=%d\n", candidates[i], g_iMainMenuBrandFont );
+			if( g_iMainMenuBrandFont )
+				break;
+		}
 	}
 	else
 	{
