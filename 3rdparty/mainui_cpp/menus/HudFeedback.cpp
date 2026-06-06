@@ -45,6 +45,7 @@ static HFont HudPreviewFont( void )
 struct HudPreviewSpriteState
 {
 	bool ready;
+	HIMAGE background;
 	HIMAGE killSheet;
 	HIMAGE scoreSheet;
 	HIMAGE weaponSheet;
@@ -137,6 +138,43 @@ static int HudPreview_DigitWidth( const wrect_t *rect, float scale )
 	return rect ? Q_max( 1, (int)(( HudPreview_RectWidth( rect ) * scale ) + 0.5f )) : 0;
 }
 
+static float HudPreview_CubicEaseOut( float t )
+{
+	if( t < 0.0f )
+		t = 0.0f;
+	else if( t > 1.0f )
+		t = 1.0f;
+
+	const float inv = 1.0f - t;
+	return 1.0f - inv * inv * inv;
+}
+
+static float HudPreview_TimePhase( float cycleSeconds, float offsetSeconds )
+{
+	if( cycleSeconds <= 0.0f )
+		return 0.0f;
+
+	const int cycleMs = Q_max( 1, (int)( cycleSeconds * 1000.0f ));
+	const int phaseMs = (int)( offsetSeconds * 1000.0f );
+	const int wrapped = ( uiStatic.realTime + phaseMs ) % cycleMs;
+	return (float)wrapped / 1000.0f;
+}
+
+static float HudPreview_FadeCycle( float phase, float fadeIn, float hold, float fadeOut )
+{
+	if( fadeIn <= 0.0f ) fadeIn = 0.01f;
+	if( hold < 0.0f ) hold = 0.0f;
+	if( fadeOut <= 0.0f ) fadeOut = 0.01f;
+
+	if( phase < fadeIn )
+		return HudPreview_CubicEaseOut( phase / fadeIn );
+	if( phase < fadeIn + hold )
+		return 1.0f;
+	if( phase < fadeIn + hold + fadeOut )
+		return 1.0f - HudPreview_CubicEaseOut( ( phase - fadeIn - hold ) / fadeOut );
+	return 0.0f;
+}
+
 static int HudPreview_CalcNumberWidth( const wrect_t *digits, int digitCount, int number, float scale )
 {
 	if( !digits || digitCount <= 0 )
@@ -203,6 +241,7 @@ static void HudPreview_InitSprites( void )
 		return;
 
 	memset( &s_spriteState, 0, sizeof( s_spriteState ));
+	s_spriteState.background = EngFuncs::PIC_Load( "gfx/shell/hud_feedback_preview_bg.png" );
 	s_spriteState.killSheet = EngFuncs::SPR_Load( "sprites/kill.spr" );
 	s_spriteState.scoreSheet = EngFuncs::SPR_Load( "sprites/scoreboard_text.spr" );
 	s_spriteState.weaponSheet = EngFuncs::SPR_Load( "sprites/640hud1.spr" );
@@ -230,7 +269,9 @@ static void HudPreview_InitSprites( void )
 	if( !HudPreview_LoadHudRect( "d_ak47", &s_spriteState.weaponRect ))
 		HudPreview_SetRect( &s_spriteState.weaponRect, 192, 80, 240, 96 );
 
-	s_spriteState.ready = true;
+	const bool digitsReady = s_spriteState.numStrip[0].right > s_spriteState.numStrip[0].left;
+	if( s_spriteState.killSheet && s_spriteState.scoreSheet && digitsReady )
+		s_spriteState.ready = true;
 }
 
 template <size_t N>
@@ -656,7 +697,19 @@ void CMenuHudPreview::Draw()
 	if( !menu )
 		return;
 
-	UI_FillRect( m_scPos, m_scSize, PackRGBA( 18, 18, 18, 232 ) );
+	HudPreview_InitSprites();
+
+	if( s_spriteState.background )
+	{
+		EngFuncs::PIC_Set( s_spriteState.background, 255, 255, 255, 255 );
+		EngFuncs::PIC_DrawTrans( m_scPos, m_scSize );
+	}
+	else
+	{
+		UI_FillRect( m_scPos, m_scSize, PackRGBA( 18, 18, 18, 232 ) );
+	}
+
+	UI_FillRect( m_scPos, m_scSize, PackRGBA( 12, 12, 12, 108 ) );
 	UI_DrawRectangle( m_scPos, m_scSize, uiInputFgColor );
 
 	char caption[128];
@@ -681,6 +734,8 @@ void CMenuHudPreview::Draw()
 		const int middleAlpha = rowAlpha * soft * 70 / 10000;
 		const int innerAlpha = rowAlpha;
 		int rowY = panelY + 10;
+		const float animTime = Q_max( 0.05f, menu->DeathNoticeAnimTime() );
+		const float rowCycle = animTime + 0.75f;
 		const char *rows[] =
 		{
 			"Fo0zer killed Ethan",
@@ -690,17 +745,21 @@ void CMenuHudPreview::Draw()
 
 		for( int i = 0; i < 3; ++i )
 		{
-			int x = panelX + (int)menu->DeathNoticeX();
+			const float phase = HudPreview_TimePhase( rowCycle, (float)i * 0.35f );
+			const float fade = HudPreview_FadeCycle( phase, animTime * 0.45f, animTime * 0.10f, animTime * 0.45f );
+			const int rowFade = (int)Q_max( 0.0f, Q_min( 255.0f, fade * rowAlpha ));
+			const int slide = (int)( ( 1.0f - fade ) * 22.0f );
+			int x = panelX + (int)menu->DeathNoticeX() + slide;
 			int w = panelW - 24;
 			int h = 16;
 
-			EngFuncs::FillRGBA( x, rowY, w, h, 0, 0, 0, outerAlpha );
+			EngFuncs::FillRGBA( x, rowY, w, h, 0, 0, 0, outerAlpha * rowFade / rowAlpha );
 			if( w > 2 && h > 2 )
-				EngFuncs::FillRGBA( x + 1, rowY + 1, w - 2, h - 2, 0, 0, 0, middleAlpha );
+				EngFuncs::FillRGBA( x + 1, rowY + 1, w - 2, h - 2, 0, 0, 0, middleAlpha * rowFade / rowAlpha );
 			if( w > 4 && h > 4 )
-				EngFuncs::FillRGBA( x + 2, rowY + 2, w - 4, h - 4, 0, 0, 0, innerAlpha );
+				EngFuncs::FillRGBA( x + 2, rowY + 2, w - 4, h - 4, 0, 0, 0, innerAlpha * rowFade / rowAlpha );
 
-			UI_DrawString( hudFont, x + 7, rowY + 1, w - 14, h, rows[i], uiColorWhite, m_scChSize - 2, QM_LEFT, ETF_SHADOW | ETF_FORCECOL | ETF_NOSIZELIMIT );
+			UI_DrawString( hudFont, x + 7, rowY + 1, w - 14, h, rows[i], PackAlpha( uiColorWhite, rowFade ), m_scChSize - 2, QM_LEFT, ETF_SHADOW | ETF_FORCECOL | ETF_NOSIZELIMIT );
 			rowY += rowGap;
 		}
 
@@ -748,6 +807,8 @@ void CMenuHudPreview::Draw()
 		const HFont hudFont = HudPreviewFont();
 		int chatX = panelX + 8 + (int)menu->ChatX();
 		int chatY = panelY + 12 + (int)menu->ChatY();
+		const float animTime = Q_max( 0.05f, menu->ChatAnimTime() );
+		const float rowCycle = animTime + 0.85f;
 		const char *msgs[] =
 		{
 			"Player: hello",
@@ -758,8 +819,12 @@ void CMenuHudPreview::Draw()
 		for( int i = 0; i < 3; ++i )
 		{
 			int y = chatY + i * 22;
-			EngFuncs::FillRGBA( chatX, y, panelW - 32, 16, 0, 0, 0, 145 );
-			UI_DrawString( hudFont, chatX + 7, y + 1, panelW - 46, 16, msgs[i], uiColorWhite, m_scChSize - 2, QM_LEFT, ETF_SHADOW | ETF_FORCECOL | ETF_NOSIZELIMIT );
+			const float phase = HudPreview_TimePhase( rowCycle, (float)i * 0.28f );
+			const float fade = HudPreview_FadeCycle( phase, animTime * 0.45f, animTime * 0.10f, animTime * 0.45f );
+			const int msgAlpha = (int)Q_max( 0.0f, Q_min( 255.0f, fade * 220.0f ));
+			const int slide = (int)( ( 1.0f - fade ) * 18.0f );
+			EngFuncs::FillRGBA( chatX + slide, y, panelW - 32, 16, 0, 0, 0, msgAlpha / 2 + 35 );
+			UI_DrawString( hudFont, chatX + 7 + slide, y + 1, panelW - 46, 16, msgs[i], PackAlpha( uiColorWhite, msgAlpha ), m_scChSize - 2, QM_LEFT, ETF_SHADOW | ETF_FORCECOL | ETF_NOSIZELIMIT );
 		}
 
 		char info[128];
@@ -776,7 +841,13 @@ void CMenuHudPreview::Draw()
 		const float numScale = menu->KillmarkNumScale();
 		const float textScale = menu->KillmarkTextScale();
 		const float iconScale = menu->KillmarkIconScale();
-		const int alpha = 255;
+		const float fadeIn = Q_max( 0.05f, menu->KillmarkFadeIn() );
+		const float hold = Q_max( 0.05f, menu->KillmarkHold() );
+		const float fadeOut = Q_max( 0.05f, menu->KillmarkFadeOut() );
+		const float phase = HudPreview_TimePhase( fadeIn + hold + fadeOut + 0.60f, 0.0f );
+		const float fade = HudPreview_FadeCycle( phase, fadeIn, hold, fadeOut );
+		const int alpha = (int)Q_max( 0.0f, Q_min( 255.0f, fade * 255.0f ));
+		const int slide = (int)( ( 1.0f - fade ) * 18.0f );
 		const int countW = HudPreview_CalcNumberWidth( s_spriteState.numStrip, 10, 13, numScale );
 		const int countH = HudPreview_RectHeight( &s_spriteState.numStrip[0] ) > 0 ? Q_max( 1, (int)( HudPreview_RectHeight( &s_spriteState.numStrip[0] ) * numScale + 0.5f )) : 0;
 		const int textW = Q_max( 1, (int)( HudPreview_RectWidth( &s_spriteState.killTextRect ) * textScale + 0.5f ));
@@ -795,29 +866,29 @@ void CMenuHudPreview::Draw()
 		const int countY = blockY + ( topH - countH ) / 2;
 		const int textY = blockY + ( topH - textH ) / 2;
 		const int iconX = blockX + ( blockW - iconW ) / 2;
-		const int iconY = blockY + topH + iconGap;
+		const int iconY = blockY + topH + iconGap + slide / 2;
 
-		EngFuncs::FillRGBA( blockX - 12, blockY - 10, blockW + 24, blockH + 20, 0, 0, 0, 120 );
+		EngFuncs::FillRGBA( blockX - 12, blockY - 10, blockW + 24, blockH + 20, 0, 0, 0, 120 * alpha / 255 );
 		UI_DrawRectangle( blockX - 12, blockY - 10, blockW + 24, blockH + 20, uiInputFgColor );
 
 		if( s_spriteState.scoreSheet )
 		{
 			EngFuncs::SPR_Set( s_spriteState.scoreSheet, 255, 255, 255, alpha );
-			HudPreview_DrawNumber( s_spriteState.scoreSheet, s_spriteState.numStrip, 10, topX, countY, 13, alpha, numScale );
+			HudPreview_DrawNumber( s_spriteState.scoreSheet, s_spriteState.numStrip, 10, topX - slide, countY, 13, alpha, numScale );
 		}
 		else
 		{
-			UI_DrawString( font, topX, countY, countW, countH, "13", uiColorWhite, m_scChSize, QM_LEFT, ETF_SHADOW | ETF_FORCECOL );
+			UI_DrawString( font, topX - slide, countY, countW, countH, "13", PackAlpha( uiColorWhite, alpha ), m_scChSize, QM_LEFT, ETF_SHADOW | ETF_FORCECOL );
 		}
 
 		if( s_spriteState.killSheet )
 		{
 			EngFuncs::SPR_Set( s_spriteState.killSheet, 255, 255, 255, alpha );
-			EngFuncs::SPR_DrawAdditiveScale( 0, topX + countW + gap, textY, &s_spriteState.killTextRect, textScale );
+			EngFuncs::SPR_DrawAdditiveScale( 0, topX + countW + gap - slide, textY, &s_spriteState.killTextRect, textScale );
 		}
 		else
 		{
-			UI_DrawString( font, topX + countW + gap, textY, textW, textH, "Kill", uiColorWhite, m_scChSize, QM_LEFT, ETF_SHADOW | ETF_FORCECOL );
+			UI_DrawString( font, topX + countW + gap - slide, textY, textW, textH, "Kill", PackAlpha( uiColorWhite, alpha ), m_scChSize, QM_LEFT, ETF_SHADOW | ETF_FORCECOL );
 		}
 
 		if( s_spriteState.killSheet )

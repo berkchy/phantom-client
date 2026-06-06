@@ -46,7 +46,8 @@ static int g_iMainMenuBrandFont = 0;
 
 void UI_Main_LoadBrandFont()
 {
-	g_iMainMenuBrandFont = 0;
+	if( g_iMainMenuBrandFont > 0 )
+		return;
 
 	if( EngFuncs::textfuncs.pfnImGui_LoadFontHandle )
 	{

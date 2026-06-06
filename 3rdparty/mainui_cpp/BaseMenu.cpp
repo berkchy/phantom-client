@@ -45,6 +45,9 @@ uiStatic_t	uiStatic;
 static CMenuEntry	*s_pEntries = NULL;
 static bool g_bImGuiTextEnabled = false;
 static float g_flImGuiFontSize = 16.0f;
+static char g_szImGuiFontPath[MAX_QPATH] = "";
+static float g_flImGuiFontLoadedSize = 0.0f;
+static bool g_bImGuiFontLoadedOnce = false;
 
 extern void UI_Main_LoadBrandFont();
 
@@ -113,6 +116,27 @@ static void UI_StripColorCodes( const char *in, char *out, size_t outSize )
 	}
 
 	out[oi] = '\0';
+}
+
+static bool UI_ImGuiFontMatchesCache( const char *fontPath, float fontSize )
+{
+	if( !g_bImGuiFontLoadedOnce || !fontPath || !fontPath[0] )
+		return false;
+
+	if( V_stricmp( g_szImGuiFontPath, fontPath ) != 0 )
+		return false;
+
+	return fontSize > 0.0f && ( g_flImGuiFontLoadedSize >= ( fontSize - 0.01f ) && g_flImGuiFontLoadedSize <= ( fontSize + 0.01f ) );
+}
+
+static void UI_ImGuiRememberLoadedFont( const char *fontPath, float fontSize )
+{
+	if( !fontPath || !fontPath[0] )
+		return;
+
+	Q_strncpy( g_szImGuiFontPath, fontPath, sizeof( g_szImGuiFontPath ));
+	g_flImGuiFontLoadedSize = fontSize;
+	g_bImGuiFontLoadedOnce = true;
 }
 
 static int UI_DrawTextLine( int x, int y, const char *line, unsigned int color, int charH, bool stripColors )
@@ -1143,19 +1167,29 @@ int UI_VidInit( void )
 
 	// Load ImGui font from fonts/font.ini if available
 	{
-		g_bImGuiTextEnabled = false;
 		g_flImGuiFontSize = 16.0f;
+
+		if( g_bImGuiFontLoadedOnce )
+		{
+			g_bImGuiTextEnabled = true;
+			UI_Main_LoadBrandFont();
+			goto skip_imgui_font_load;
+		}
 
 		int iniSize = 0;
 		char *iniData = (char *)EngFuncs::COM_LoadFile( "fonts/font.ini", &iniSize );
 
 		if( !iniData )
 		{
-			Con_Printf( "ImGui: fonts/font.ini not found\n" );
+			if( !g_bImGuiFontLoadedOnce )
+				Con_Printf( "ImGui: fonts/font.ini not found\n" );
+			else
+				g_bImGuiTextEnabled = true;
 		}
 		else
 		{
-			Con_Printf( "ImGui: fonts/font.ini found (%d bytes)\n", iniSize );
+			if( !g_bImGuiFontLoadedOnce )
+				Con_Printf( "ImGui: fonts/font.ini found (%d bytes)\n", iniSize );
 
 			char fontPath[256] = "";
 			float fontSize = 18.0f;
@@ -1224,38 +1258,48 @@ int UI_VidInit( void )
 
 			if( fontPath[0] && fontSize > 0 )
 			{
-				int fontFileSize = 0;
-				byte *fontFile = EngFuncs::COM_LoadFile( fontPath, &fontFileSize );
-				if( fontFile )
+				if( UI_ImGuiFontMatchesCache( fontPath, fontSize ) )
 				{
-					Con_Printf( "ImGui: client precheck COM_LoadFile(\"%s\") succeeded (%d bytes, magic=%02X %02X %02X %02X)\n",
-						fontPath, fontFileSize,
-						fontFileSize > 0 ? fontFile[0] : 0,
-						fontFileSize > 1 ? fontFile[1] : 0,
-						fontFileSize > 2 ? fontFile[2] : 0,
-						fontFileSize > 3 ? fontFile[3] : 0 );
-					EngFuncs::COM_FreeFile( fontFile );
-				}
-				else
-				{
-					Con_Printf( "ImGui: client precheck COM_LoadFile(\"%s\") FAILED\n", fontPath );
-				}
-
-				if( EngFuncs::textfuncs.pfnImGui_LoadFont )
-				{
-					Con_Printf( "ImGui: calling pfnImGui_LoadFont( \"%s\", %.0f )...\n", fontPath, fontSize );
-					int result = EngFuncs::textfuncs.pfnImGui_LoadFont( fontPath, fontSize );
-					Con_Printf( "ImGui: pfnImGui_LoadFont returned %d\n", result );
-					g_bImGuiTextEnabled = result != 0;
+					g_bImGuiTextEnabled = true;
 					g_flImGuiFontSize = fontSize;
-					Con_Printf( "ImGui: menu text rendering %s\n", g_bImGuiTextEnabled ? "enabled" : "disabled" );
 				}
 				else
 				{
-					Con_Printf( "ImGui: pfnImGui_LoadFont is unavailable, menu text rendering disabled\n" );
+					int fontFileSize = 0;
+					byte *fontFile = EngFuncs::COM_LoadFile( fontPath, &fontFileSize );
+					if( fontFile )
+					{
+						Con_Printf( "ImGui: client precheck COM_LoadFile(\"%s\") succeeded (%d bytes, magic=%02X %02X %02X %02X)\n",
+							fontPath, fontFileSize,
+							fontFileSize > 0 ? fontFile[0] : 0,
+							fontFileSize > 1 ? fontFile[1] : 0,
+							fontFileSize > 2 ? fontFile[2] : 0,
+							fontFileSize > 3 ? fontFile[3] : 0 );
+						EngFuncs::COM_FreeFile( fontFile );
+					}
+					else if( !g_bImGuiFontLoadedOnce )
+					{
+						Con_Printf( "ImGui: client precheck COM_LoadFile(\"%s\") FAILED\n", fontPath );
+					}
+
+					if( EngFuncs::textfuncs.pfnImGui_LoadFont )
+					{
+						Con_Printf( "ImGui: calling pfnImGui_LoadFont( \"%s\", %.0f )...\n", fontPath, fontSize );
+						int result = EngFuncs::textfuncs.pfnImGui_LoadFont( fontPath, fontSize );
+						Con_Printf( "ImGui: pfnImGui_LoadFont returned %d\n", result );
+						g_bImGuiTextEnabled = result != 0;
+						g_flImGuiFontSize = fontSize;
+						if( result )
+							UI_ImGuiRememberLoadedFont( fontPath, fontSize );
+						Con_Printf( "ImGui: menu text rendering %s\n", g_bImGuiTextEnabled ? "enabled" : "disabled" );
+					}
+					else if( !g_bImGuiFontLoadedOnce )
+					{
+						Con_Printf( "ImGui: pfnImGui_LoadFont is unavailable, menu text rendering disabled\n" );
+					}
 				}
 			}
-			else
+			else if( !g_bImGuiFontLoadedOnce )
 			{
 				Con_Printf( "ImGui: font config incomplete (font=\"%s\", size=%.0f)\n", fontPath, fontSize );
 			}
@@ -1265,6 +1309,8 @@ int UI_VidInit( void )
 
 		UI_Main_LoadBrandFont();
 	}
+
+skip_imgui_font_load:
 
 	// load button sounds
 	UI_LoadSounds();

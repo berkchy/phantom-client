@@ -63,6 +63,9 @@ public class LauncherActivity extends AppCompatActivity {
     private static final String KEY_DEV = "dev";
     private static final String KEY_YAPB = "yapb";
     private static final String KEY_CUSTOM = "custom";
+    private static final String KEY_SCREEN_WIDTH = "screen_width";
+    private static final String KEY_SCREEN_HEIGHT = "screen_height";
+    private static final String KEY_FULLSCREEN_UI = "fullscreen_ui";
 
     private static final int PANEL_PLAY = 0;
     private static final int PANEL_SERVERS = 1;
@@ -92,10 +95,13 @@ public class LauncherActivity extends AppCompatActivity {
     private TextInputEditText serverSearch;
     private TextInputEditText directConnectAddress;
     private TextInputEditText customArgs;
+    private TextInputEditText screenWidth;
+    private TextInputEditText screenHeight;
     private MaterialSwitch enableConsole;
     private MaterialSwitch enableLog;
     private MaterialSwitch enableDev;
     private MaterialSwitch enableYapb;
+    private MaterialSwitch immersiveFullscreen;
     private ImageView gameIcon;
     private TextView gameTitleView;
     private TextView gameSubtitle;
@@ -167,10 +173,13 @@ public class LauncherActivity extends AppCompatActivity {
         serverSearch = findViewById(R.id.serverSearch);
         directConnectAddress = findViewById(R.id.directConnectAddress);
         customArgs = findViewById(R.id.customArgs);
+        screenWidth = findViewById(R.id.screenWidth);
+        screenHeight = findViewById(R.id.screenHeight);
         enableConsole = findViewById(R.id.enableConsole);
         enableLog = findViewById(R.id.enableLog);
         enableDev = findViewById(R.id.enableDev);
         enableYapb = findViewById(R.id.enableYapb);
+        immersiveFullscreen = findViewById(R.id.immersiveFullscreen);
         gameIcon = findViewById(R.id.gameIcon);
         gameTitleView = findViewById(R.id.gameTitle);
         gameSubtitle = findViewById(R.id.gameSubtitle);
@@ -208,6 +217,8 @@ public class LauncherActivity extends AppCompatActivity {
     private void bindOptions() {
         TextWatcher watcher = new SimpleTextWatcher(this::updateCommandPreview);
         customArgs.addTextChangedListener(watcher);
+        screenWidth.addTextChangedListener(watcher);
+        screenHeight.addTextChangedListener(watcher);
         serverSearch.addTextChangedListener(new SimpleTextWatcher(() -> {
             serverFilter = textOf(serverSearch);
             applyFilter();
@@ -216,6 +227,7 @@ public class LauncherActivity extends AppCompatActivity {
         enableLog.setOnCheckedChangeListener((buttonView, isChecked) -> updateCommandPreview());
         enableDev.setOnCheckedChangeListener((buttonView, isChecked) -> updateCommandPreview());
         enableYapb.setOnCheckedChangeListener((buttonView, isChecked) -> updateCommandPreview());
+        immersiveFullscreen.setOnCheckedChangeListener((buttonView, isChecked) -> updateCommandPreview());
 
         refreshServersButton.setOnClickListener(v -> refreshServers());
         directConnectButton.setOnClickListener(v -> {
@@ -248,6 +260,11 @@ public class LauncherActivity extends AppCompatActivity {
         enableDev.setChecked(prefs().getBoolean(KEY_DEV, true));
         enableYapb.setChecked(prefs().getBoolean(KEY_YAPB, true));
         customArgs.setText(prefs().getString(KEY_CUSTOM, ""));
+        int defaultWidth = getResources().getDisplayMetrics().widthPixels;
+        int defaultHeight = getResources().getDisplayMetrics().heightPixels;
+        screenWidth.setText(prefs().getString(KEY_SCREEN_WIDTH, Integer.toString(defaultWidth)));
+        screenHeight.setText(prefs().getString(KEY_SCREEN_HEIGHT, Integer.toString(defaultHeight)));
+        immersiveFullscreen.setChecked(prefs().getBoolean(KEY_FULLSCREEN_UI, true));
     }
 
     private void savePreferences() {
@@ -257,6 +274,9 @@ public class LauncherActivity extends AppCompatActivity {
                 .putBoolean(KEY_DEV, enableDev.isChecked())
                 .putBoolean(KEY_YAPB, enableYapb.isChecked())
                 .putString(KEY_CUSTOM, textOf(customArgs))
+                .putString(KEY_SCREEN_WIDTH, textOf(screenWidth))
+                .putString(KEY_SCREEN_HEIGHT, textOf(screenHeight))
+                .putBoolean(KEY_FULLSCREEN_UI, immersiveFullscreen.isChecked())
                 .apply();
     }
 
@@ -320,6 +340,14 @@ public class LauncherActivity extends AppCompatActivity {
 
     private String buildArgv(@Nullable String connectAddress) {
         StringBuilder sb = new StringBuilder();
+        int width = parsePositiveInt(textOf(screenWidth));
+        int height = parsePositiveInt(textOf(screenHeight));
+        if (width > 0 && height > 0) {
+            appendArg(sb, "-width");
+            appendArg(sb, Integer.toString(width));
+            appendArg(sb, "-height");
+            appendArg(sb, Integer.toString(height));
+        }
         if (enableConsole.isChecked()) {
             appendArg(sb, "-console");
         }
@@ -352,7 +380,7 @@ public class LauncherActivity extends AppCompatActivity {
         savePreferences();
         String argv = buildArgv(selectedServer != null ? selectedServer.address : null);
         startAssetSyncIfPossible();
-        EngineLauncher.launchEngine(this, gameDir, argv);
+        EngineLauncher.launchEngine(this, gameDir, argv, immersiveFullscreen.isChecked());
     }
 
     private void startAssetSyncIfPossible() {
@@ -596,6 +624,15 @@ public class LauncherActivity extends AppCompatActivity {
     private String textOf(TextInputEditText editText) {
         Editable text = editText.getText();
         return text == null ? "" : text.toString().trim();
+    }
+
+    private int parsePositiveInt(String value) {
+        try {
+            int parsed = Integer.parseInt(value.trim());
+            return parsed > 0 ? parsed : -1;
+        } catch (Exception ignored) {
+            return -1;
+        }
     }
 
     private static final class SimpleTextWatcher implements TextWatcher {

@@ -19,6 +19,10 @@
     <string name="launcher_enable_log">Log</string>
     <string name="launcher_enable_dev">Developer 2</string>
     <string name="launcher_enable_yapb">Enable YAPB</string>
+    <string name="launcher_display_settings">Display</string>
+    <string name="launcher_screen_width">Width</string>
+    <string name="launcher_screen_height">Height</string>
+    <string name="launcher_immersive_fullscreen">Fullscreen</string>
     <string name="launcher_no_servers">No servers loaded yet.</string>
     <string name="launcher_loading_servers">Loading servers...</string>
     <string name="launcher_connect_password">Password</string>

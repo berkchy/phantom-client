@@ -39,6 +39,10 @@ public final class EngineLauncher {
     }
 
     public static void launchEngine(Context context, String gameDir, String argv) {
+        launchEngine(context, gameDir, argv, true);
+    }
+
+    public static void launchEngine(Context context, String gameDir, String argv, boolean immersiveFullscreen) {
         String pkg = findEnginePackage(context);
         if (pkg == null) {
             promptInstall(context);
@@ -50,6 +54,7 @@ public final class EngineLauncher {
                 .putExtra("gamedir", gameDir)
                 .putExtra("gamelibdir", context.getApplicationInfo().nativeLibraryDir)
                 .putExtra("argv", argv)
+                .putExtra("ui_fullscreen", immersiveFullscreen)
                 .putExtra("package", context.getPackageName());
 
         context.startActivity(intent);

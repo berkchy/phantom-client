@@ -268,6 +268,75 @@ static const wrect_t kKillIconHeadRect = { 0, 0, 98, 98 };
 static const wrect_t kKillIconKnifeRect = { 97, 195, 0, 98 };
 static const wrect_t kKillIconFragRect = { 0, 98, 97, 195 };
 
+struct KillMarkSpriteCache
+{
+	qboolean loaded;
+	HSPRITE killSprite;
+	HSPRITE numSprite;
+	wrect_t numberStrip[10];
+	wrect_t killText;
+	wrect_t firstBloodText;
+	wrect_t iconHead;
+	wrect_t iconKnife;
+	wrect_t iconFrag;
+	const char *killSounds[13];
+	const char *headshotSound;
+	const char *knifeSound;
+	const char *grenadeSound;
+};
+
+static KillMarkSpriteCache s_KillMarkCache =
+{
+	false,
+	0,
+	0,
+	{ { 0, 0, 0, 0 } },
+	{ 0, 0, 0, 0 },
+	{ 0, 0, 0, 0 },
+	{ 0, 0, 0, 0 },
+	{ 0, 0, 0, 0 },
+	{ 0, 0, 0, 0 },
+	{ NULL },
+	NULL,
+	NULL,
+	NULL
+};
+
+static void KillMark_LoadCacheOnce( void )
+{
+	if( s_KillMarkCache.loaded )
+		return;
+
+	s_KillMarkCache.killSprite = KillMark_LoadSpriteNearest( "sprites/kill.spr" );
+	s_KillMarkCache.numSprite = KillMark_LoadSpriteNearest( "sprites/scoreboard_text.spr" );
+
+	s_KillMarkCache.killText = kKillTextRect;
+	s_KillMarkCache.firstBloodText = kFirstBloodTextRect;
+	s_KillMarkCache.iconHead = kKillIconHeadRect;
+	s_KillMarkCache.iconKnife = kKillIconKnifeRect;
+	s_KillMarkCache.iconFrag = kKillIconFragRect;
+
+	wrect_t numberStripRect = { 0, 0, 0, 0 };
+	if( !KillMark_LoadHudRect( "SBNum_L", &numberStripRect ) )
+		KillMark_LoadHudRect( "SBNum_S", &numberStripRect );
+	KillMark_BuildNumberStrip( numberStripRect, s_KillMarkCache.numberStrip, 10 );
+
+	KillMark_LoadHudRect( "SBText_1st", &s_KillMarkCache.firstBloodText );
+	KillMark_LoadHudRect( "KM_KillText", &s_KillMarkCache.killText );
+	KillMark_LoadHudRect( "KM_Icon_Head", &s_KillMarkCache.iconHead );
+	KillMark_LoadHudRect( "KM_Icon_knife", &s_KillMarkCache.iconKnife );
+	KillMark_LoadHudRect( "KM_Icon_Frag", &s_KillMarkCache.iconFrag );
+
+	for( int i = 0; i < 13; ++i )
+		s_KillMarkCache.killSounds[i] = KillMark_ResolveCandidate( kKillCountSoundCandidates[i], 2 );
+
+	s_KillMarkCache.headshotSound = KillMark_ResolveCandidate( kHeadshotSoundCandidates, sizeof( kHeadshotSoundCandidates ) / sizeof( kHeadshotSoundCandidates[0] ) );
+	s_KillMarkCache.knifeSound = KillMark_ResolveCandidate( kKnifeSoundCandidates, sizeof( kKnifeSoundCandidates ) / sizeof( kKnifeSoundCandidates[0] ) );
+	s_KillMarkCache.grenadeSound = KillMark_ResolveCandidate( kGrenadeSoundCandidates, sizeof( kGrenadeSoundCandidates ) / sizeof( kGrenadeSoundCandidates[0] ) );
+
+	s_KillMarkCache.loaded = true;
+}
+
 int CHudKillMark::Init( void )
 {
 	gHUD.AddHudElem( this );
@@ -381,32 +450,23 @@ int CHudKillMark::DrawHudNumber( HSPRITE sprite, const wrect_t *prc, int x, int 
 
 int CHudKillMark::VidInit( void )
 {
-	m_hKillSprite = KillMark_LoadSpriteNearest( "sprites/kill.spr" );
-	m_hNumSprite = KillMark_LoadSpriteNearest( "sprites/scoreboard_text.spr" );
+	KillMark_LoadCacheOnce();
 
-	m_rcKillText = kKillTextRect;
-	m_rcFirstBloodText = kFirstBloodTextRect;
-	m_rcIconHead = kKillIconHeadRect;
-	m_rcIconKnife = kKillIconKnifeRect;
-	m_rcIconFrag = kKillIconFragRect;
-
-	wrect_t numberStripRect = { 0, 0, 0, 0 };
-	if( !KillMark_LoadHudRect( "SBNum_L", &numberStripRect ) )
-		KillMark_LoadHudRect( "SBNum_S", &numberStripRect );
-	KillMark_BuildNumberStrip( numberStripRect, m_rcNumber, 10 );
-
-	KillMark_LoadHudRect( "SBText_1st", &m_rcFirstBloodText );
-	KillMark_LoadHudRect( "KM_KillText", &m_rcKillText );
-	KillMark_LoadHudRect( "KM_Icon_Head", &m_rcIconHead );
-	KillMark_LoadHudRect( "KM_Icon_knife", &m_rcIconKnife );
-	KillMark_LoadHudRect( "KM_Icon_Frag", &m_rcIconFrag );
+	m_hKillSprite = s_KillMarkCache.killSprite;
+	m_hNumSprite = s_KillMarkCache.numSprite;
+	memcpy( m_rcNumber, s_KillMarkCache.numberStrip, sizeof( s_KillMarkCache.numberStrip ) );
+	m_rcKillText = s_KillMarkCache.killText;
+	m_rcFirstBloodText = s_KillMarkCache.firstBloodText;
+	m_rcIconHead = s_KillMarkCache.iconHead;
+	m_rcIconKnife = s_KillMarkCache.iconKnife;
+	m_rcIconFrag = s_KillMarkCache.iconFrag;
 
 	for( int i = 0; i < 13; ++i )
-		m_pszKillSounds[i] = ResolveSoundCandidate( kKillCountSoundCandidates[i], 2 );
+		m_pszKillSounds[i] = s_KillMarkCache.killSounds[i];
 
-	m_pszHeadshotSound = ResolveSoundCandidate( kHeadshotSoundCandidates, sizeof( kHeadshotSoundCandidates ) / sizeof( kHeadshotSoundCandidates[0] ) );
-	m_pszKnifeSound = ResolveSoundCandidate( kKnifeSoundCandidates, sizeof( kKnifeSoundCandidates ) / sizeof( kKnifeSoundCandidates[0] ) );
-	m_pszGrenadeSound = ResolveSoundCandidate( kGrenadeSoundCandidates, sizeof( kGrenadeSoundCandidates ) / sizeof( kGrenadeSoundCandidates[0] ) );
+	m_pszHeadshotSound = s_KillMarkCache.headshotSound;
+	m_pszKnifeSound = s_KillMarkCache.knifeSound;
+	m_pszGrenadeSound = s_KillMarkCache.grenadeSound;
 
 	m_bLastHeadshot = false;
 	m_bCurrentFirstBlood = false;
@@ -496,12 +556,6 @@ int CHudKillMark::Draw( float flTime )
 {
 	if( !m_iKillCount )
 		return 1;
-
-	if( m_flComboResetTime > 0.0f && flTime > m_flComboResetTime )
-	{
-		ResetState();
-		return 1;
-	}
 
 	if( m_flDisplayEndTime <= flTime )
 		return 1;
