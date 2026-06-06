@@ -113,7 +113,7 @@ void CMenuYesNoMessageBox::_VidInit()
 	pos.y += uiStatic.yOffset;
 	CalcPosition();
 	CalcSizes();
-	// Preserve background color from override, not ui_menufont_color
+	// Preserve background color from existing override
 	background.colorBase = PackRGBA( 18, 18, 18, 180 );
 }
 

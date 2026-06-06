@@ -140,13 +140,6 @@ void CMenuBaseItem::ApplyMenuFontCvars()
 		}
 	}
 
-	if( ui_menufont_color )
-	{
-		int r = 255, g = 255, b = 255, a = 255;
-		sscanf( ui_menufont_color->string, "%d %d %d %d", &r, &g, &b, &a );
-		colorBase = PackRGBA( r, g, b, a );
-		colorFocus = PackRGBA( r, g, b, a );
-	}
 }
 
 void CMenuBaseItem::_Event( int ev )

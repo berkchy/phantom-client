@@ -411,6 +411,10 @@ public class LauncherActivity extends AppCompatActivity {
         try (ZipFile apk = new ZipFile(getPackageCodePath())) {
             syncAssetTree(apk, "sprites", new File(gameRoot, "sprites"));
             syncAssetTree(apk, "sound/vox", new File(gameRoot, "sound/vox"));
+            syncAssetTree(apk, "gfx/shell", new File(gameRoot, "gfx/shell"));
+            syncAssetTree(apk, "fonts.wad", new File(gameRoot, "fonts.wad"));
+            syncAssetTree(apk, "gfx.wad", new File(gameRoot, "gfx.wad"));
+            syncAssetTree(apk, "resource/gameui_english.txt", new File(gameRoot, "resource/gameui_english.txt"));
         } catch (IOException e) {
             appendMiniConsole("launcher: asset sync failed open apk " + e.getMessage());
         }

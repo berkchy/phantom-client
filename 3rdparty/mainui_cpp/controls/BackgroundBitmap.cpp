@@ -59,7 +59,7 @@ void CMenuBackgroundBitmap::VidInit()
 		size = Size( ScreenWidth, ScreenHeight );
 	}
 
-	// Preserve background tint color, not ui_menufont_color
+	// Preserve background tint color from existing override
 	colorBase = 0xFF505050;
 
 	colorBase.SetDefault( 0xFF505050 );

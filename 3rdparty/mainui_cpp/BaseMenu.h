@@ -66,7 +66,6 @@ extern cvar_t	*ui_borderclip;
 extern cvar_t	*ui_prefer_won_background;
 extern cvar_t	*ui_background_stretch;
 extern cvar_t	*ui_menufont_scale;
-extern cvar_t	*ui_menufont_color;
 extern cvar_t	*ui_hostname_limit;
 extern cvar_t	*ui_menutransition_time;
 

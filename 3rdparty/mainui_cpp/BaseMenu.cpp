@@ -38,7 +38,6 @@ cvar_t		*ui_borderclip;
 cvar_t		*ui_prefer_won_background;
 cvar_t		*ui_background_stretch;
 cvar_t		*ui_menufont_scale;
-cvar_t		*ui_menufont_color;
 cvar_t		*ui_hostname_limit;
 cvar_t		*ui_menutransition_time;
 
@@ -1352,7 +1351,6 @@ void UI_Init( void )
 	ui_prefer_won_background = EngFuncs::CvarRegister( "ui_prefer_won_background", "0", FCVAR_ARCHIVE );
 	ui_background_stretch = EngFuncs::CvarRegister( "ui_background_stretch", "0", FCVAR_ARCHIVE );
 	ui_menufont_scale = EngFuncs::CvarRegister( "ui_menufont_scale", "1.0", FCVAR_ARCHIVE );
-	ui_menufont_color = EngFuncs::CvarRegister( "ui_menufont_color", "255 255 255 255", FCVAR_ARCHIVE );
 	ui_hostname_limit = EngFuncs::CvarRegister( "ui_hostname_limit", "28", FCVAR_ARCHIVE );
 	ui_menutransition_time = EngFuncs::CvarRegister( "ui_menutransition_time", "200", FCVAR_ARCHIVE );
 
