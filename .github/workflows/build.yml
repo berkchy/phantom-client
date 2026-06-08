@@ -15,6 +15,7 @@ jobs:
       - name: Prepare release tag
         if: github.event_name == 'push'
         env:
+          GITHUB_TOKEN: ""
           GH_TOKEN: ${{ secrets.RELEASES_TOKEN }}
         run: |
           if [[ "${GITHUB_REF_NAME}" == "main" ]]; then
