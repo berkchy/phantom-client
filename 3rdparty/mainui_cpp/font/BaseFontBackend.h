@@ -5,6 +5,10 @@
 #include "BaseMenu.h"
 #include "miniutl/utlrbtree.h"
 
+#if defined(_WIN32)
+#undef GetCharABCWidths
+#endif // defined(_WIN32)
+
 struct charRange_t
 {
 	uint32_t chMin;
