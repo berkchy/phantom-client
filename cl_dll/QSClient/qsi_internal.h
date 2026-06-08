@@ -4,6 +4,10 @@
 #include "studio.h"
 #include "GameStudioModelRenderer.h"
 
+#ifndef M_PI
+#define M_PI 3.14159265358979323846
+#endif
+
 constexpr float kEyeHeightDucked = 12.0f;
 constexpr float kEyeHeightStanding = 17.0f;
 constexpr float kAutoScopeDelay = 0.75f;
