@@ -103,7 +103,7 @@ void CFontManager::GetCharABCWide(HFont font, int ch, int &a, int &b, int &c)
 {
 	CBaseFont *pFont = GetIFontFromHandle( font );
 	if( pFont )
-		pFont->GetCharABCWidths( ch, a, b, c );
+		pFont->GetCharABCWidthsNoCache( ch, a, b, c );
 	else
 		a = b = c = 0;
 }
@@ -192,7 +192,7 @@ void CFontManager::GetTextSize(HFont fontHandle, const char *text, int *wide, in
 			else
 			{
 				int a, b, c;
-				font->GetCharABCWidths( uch, a, b, c );
+				font->GetCharABCWidthsNoCache( uch, a, b, c );
 				x += a + b + c;
 				if( x > _wide )
 					_wide = x;
@@ -241,7 +241,7 @@ int CFontManager::CutText(HFont fontHandle, const char *text, int height, int vi
 			}
 
 			int a, b, c;
-			font->GetCharABCWidths( uch, a, b, c );
+			font->GetCharABCWidthsNoCache( uch, a, b, c );
 			x = a + b + c;
 
 			if( uch == ' ' )
@@ -290,7 +290,7 @@ int CFontManager::CutText(HFont fontHandle, const char *text, int height, int vi
 		if( uch )
 		{
 			int a, b, c;
-			font->GetCharABCWidths( uch, a, b, c );
+			font->GetCharABCWidthsNoCache( uch, a, b, c );
 			_wide -= a + b + c;
 
 			if( uch == ' ' )
