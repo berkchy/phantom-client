@@ -19,6 +19,11 @@ GNU General Public License for more details.
 
 #include "BaseFontBackend.h"
 #include "BitmapFont.h"
+#if defined( MAINUI_USE_STB )
+#include "StbFont.h"
+#elif defined( _WIN32 )
+#include "WinAPIFont.h"
+#endif
 #include "utflib.h"
 
 #define DEFAULT_WEIGHT   500
@@ -401,7 +406,13 @@ HFont CFontBuilder::Create()
 		}
 	}
 
+#if defined( MAINUI_USE_STB )
+	font = new CStbFont();
+#elif defined( _WIN32 ) && defined( MAINUI_USE_CUSTOM_FONT_RENDER )
+	font = new CWinAPIFont();
+#else
 	font = new CBitmapFont();
+#endif
 
 	double starttime = EngFuncs::DoubleTime();
 

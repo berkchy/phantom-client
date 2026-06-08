@@ -31,6 +31,10 @@ if(NOT XASH_SDK)
 	set(XASH_SDK "sdk_includes/")
 endif()
 
+if(WIN32)
+	add_definitions(-DMAINUI_USE_STB)
+endif()
+
 file(GLOB MAINUI_CONTROLS_SOURCES "controls/*.cpp")
 file(GLOB MAINUI_MENUS_SOURCES "menus/*.cpp" "menus/dynamic/*.cpp" "menus/client/*.cpp")
 list(APPEND MAINUI_MENUS_SOURCES "menus/FontOptions.cpp")

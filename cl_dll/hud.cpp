@@ -257,6 +257,7 @@ char *Q_buildnum( void )
 int __MsgFunc_ADStop( const char *name, int size, void *buf ) { return 1; }
 int __MsgFunc_ItemStatus( const char *name, int size, void *buf ) { return 1; }
 // int __MsgFunc_ReqState( const char *name, int size, void *buf ) { return 1; }
+extern int __MsgFunc_ReqState( const char *name, int size, void *buf );
 int __MsgFunc_ForceCam( const char *name, int size, void *buf ) { return 1; }
 int __MsgFunc_Spectator( const char *name, int size, void *buf ) { return 1; }
 
@@ -311,7 +312,7 @@ void CHud :: Init( void )
 
 	gEngfuncs.pfnHookUserMsg( "ADStop", __MsgFunc_ADStop );
 	gEngfuncs.pfnHookUserMsg( "ItemStatus", __MsgFunc_ItemStatus );
-	// gEngfuncs.pfnHookUserMsg( "ReqState", __MsgFunc_ReqState );
+	gEngfuncs.pfnHookUserMsg( "ReqState", __MsgFunc_ReqState );
 	gEngfuncs.pfnHookUserMsg( "ForceCam", __MsgFunc_ForceCam );
 	gEngfuncs.pfnHookUserMsg( "Spectator", __MsgFunc_Spectator );
 
