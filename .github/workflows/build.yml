@@ -4,6 +4,9 @@ on: [ push, pull_request ]
 permissions:
   contents: write
 
+env:
+  RELEASES_REPO: berkchy/phantom-releases
+
 jobs:
   prepare-release:
     name: Prepare Release
@@ -12,7 +15,7 @@ jobs:
       - name: Prepare release tag
         if: github.event_name == 'push'
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.RELEASES_TOKEN }}
         run: |
           if [[ "${GITHUB_REF_NAME}" == "main" ]]; then
             TAG_NAME="continuous"
@@ -20,15 +23,15 @@ jobs:
             TAG_NAME="continuous-${GITHUB_REF_NAME}"
           fi
 
-          if gh release view "$TAG_NAME" --repo "${{ github.repository }}" >/dev/null 2>&1; then
-            gh release delete "$TAG_NAME" --yes --cleanup-tag --repo "${{ github.repository }}"
+          if gh release view "$TAG_NAME" --repo "${{ env.RELEASES_REPO }}" >/dev/null 2>&1; then
+            gh release delete "$TAG_NAME" --yes --cleanup-tag --repo "${{ env.RELEASES_REPO }}"
           fi
 
           gh release create "$TAG_NAME" \
             --title "CS16Client development build" \
             --prerelease \
             --target "${GITHUB_SHA}" \
-            --repo "${{ github.repository }}"
+            --repo "${{ env.RELEASES_REPO }}"
 
   android:
     name: Android
@@ -66,6 +69,8 @@ jobs:
         if: github.event_name == 'push'
         uses: softprops/action-gh-release@v2
         with:
+          repository: ${{ env.RELEASES_REPO }}
+          token: ${{ secrets.RELEASES_TOKEN }}
           tag_name: ${{ github.ref_name == 'main' && 'continuous' || format('continuous-{0}', github.ref_name) }}
           files: android/CS16Client-Android.apk
           fail_on_unmatched_files: true
@@ -99,6 +104,8 @@ jobs:
         if: github.event_name == 'push'
         uses: softprops/action-gh-release@v2
         with:
+          repository: ${{ env.RELEASES_REPO }}
+          token: ${{ secrets.RELEASES_TOKEN }}
           tag_name: ${{ github.ref_name == 'main' && 'continuous' || format('continuous-{0}', github.ref_name) }}
           files: build/*.zip
           fail_on_unmatched_files: true
