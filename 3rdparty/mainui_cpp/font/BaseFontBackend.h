@@ -3,6 +3,7 @@
 #define BASEFONT_H
 
 #include "BaseMenu.h"
+#include "miniutl/utlrbtree.h"
 
 struct charRange_t
 {
@@ -47,13 +48,14 @@ public:
 	virtual void UploadGlyphsForRanges( charRange_t *range, int rangeSize );
 	virtual int  DrawCharacter(int ch, Point pt, int charH, const unsigned int color, bool forceAdditive = false);
 
-	inline int GetHeight() const       { return m_iHeight; }
+	inline int GetHeight() const       { return m_iHeight + GetEfxOffset(); }
 	inline int GetTall() const         { return m_iTall; }
 	inline const char *GetName() const { return m_szName; }
 	inline int GetAscent() const       { return m_iAscent; }
 	inline int GetMaxCharWidth() const { return m_iMaxCharWidth; }
 	inline int GetFlags() const        { return m_iFlags; }
 	inline int GetWeight() const       { return m_iWeight; }
+	inline int GetEfxOffset() const    { return m_iBlur + m_iOutlineSize; }
 
 	bool IsEqualTo( const char *name, int tall, int weight, int blur, int flags ) const;
 
@@ -64,9 +66,15 @@ public:
 	inline int GetEllipsisWide( ) { return m_iEllipsisWide; }
 
 protected:
+	void ApplyBlur( Size rgbaSz, byte *rgba );
+	void ApplyOutline(Point pt, Size rgbaSz, byte *rgba );
+	void ApplyScanline( Size rgbaSz, byte *rgba );
+	void ApplyStrikeout( Size rgbaSz, byte *rgba );
+
 	char m_szName[32];
 	int	 m_iTall, m_iWeight, m_iFlags, m_iHeight, m_iMaxCharWidth;
 	int  m_iAscent;
+	bool m_bAdditive;
 
 	// blurring
 	int  m_iBlur;
@@ -80,6 +88,41 @@ protected:
 	int  m_iOutlineSize;
 	int m_iEllipsisWide;
 
+private:
+	bool ReadFromCache( const char *filename, charRange_t *range, size_t rangeSize );
+	void SaveToCache( const char *filename, charRange_t *range, size_t rangeSize, CBMP *bmp );
+
+	void GetBlurValueForPixel( double *distribution, const byte *src, Point srcPt, Size srcSz, byte *dest );
+
+	struct glyph_t
+	{
+		glyph_t() : ch( 0 ), texture( 0 ), rect() { }
+		glyph_t( int ch ) : ch( ch ), texture( 0 ), rect() { }
+		int ch;
+		HIMAGE texture;
+		wrect_t rect;
+
+		bool operator< (const glyph_t &a) const
+		{
+			return ch < a.ch;
+		}
+	};
+
+	struct abc_t
+	{
+		int ch;
+		int a, b, c;
+
+		bool operator< ( const abc_t &a ) const
+		{
+			return ch < a.ch;
+		}
+	};
+
+	CUtlRBTree<glyph_t, int> m_glyphs;
+	CUtlRBTree<abc_t, int>   m_ABCCache;
+
+	char m_szTextureName[256];
 	friend class CFontManager;
 };
 
