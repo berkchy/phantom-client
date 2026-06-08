@@ -39,7 +39,13 @@ file(GLOB MAINUI_CONTROLS_SOURCES "controls/*.cpp")
 file(GLOB MAINUI_MENUS_SOURCES "menus/*.cpp" "menus/dynamic/*.cpp" "menus/client/*.cpp")
 list(APPEND MAINUI_MENUS_SOURCES "menus/FontOptions.cpp")
 list(APPEND MAINUI_MENUS_SOURCES "menus/HudFeedback.cpp")
-file(GLOB MAINUI_FONT_SOURCES "font/BitmapFont.cpp" "font/BaseFontBackend.cpp" "font/FontManager.cpp")
+file(GLOB MAINUI_FONT_SOURCES
+	"font/BitmapFont.cpp"
+	"font/BaseFontBackend.cpp"
+	"font/FontManager.cpp"
+	"font/FreeTypeFont.cpp"
+	"font/StbFont.cpp"
+	"font/WinAPIFont.cpp")
 file(GLOB MAINUI_SOURCES "miniutl/*.cpp" "*.cpp")
 
 add_library(menu SHARED ${MAINUI_CONTROLS_SOURCES} ${MAINUI_MENUS_SOURCES} ${MAINUI_FONT_SOURCES} ${MAINUI_SOURCES} ${CMAKE_SOURCE_DIR}/common/interface.cpp)
