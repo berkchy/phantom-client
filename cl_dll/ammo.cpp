@@ -80,7 +80,7 @@ static bool Ammo_GetHudIconName( const char *weaponName, char *out, size_t outSi
 	if( !strcmp( name, "hegrenade" ) || !strcmp( name, "grenade" ) || !strcmp( name, "flashbang" ) || !strcmp( name, "smokegrenade" ) )
 		snprintf( out, outSize, "d_grenade" );
 	else if( !strcmp( name, "c4" ) )
-		snprintf( out, outSize, "smallc4" );
+		snprintf( out, outSize, "c4" );
 	else if( !strncmp( name, "d_", 2 ) )
 		snprintf( out, outSize, "%s", name );
 	else

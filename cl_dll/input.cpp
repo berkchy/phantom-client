@@ -26,6 +26,7 @@
 
 #include "vgui_parser.h"
 #include "com_weapons.h"
+#include "QSClient/qsi.h"
 
 extern int g_weaponselect;
 extern cl_enginefunc_t gEngfuncs;
@@ -757,6 +758,8 @@ void DLLEXPORT CL_CreateMove ( float frametime, struct usercmd_s *cmd, int activ
 		VectorCopy( viewangles, cmd->viewangles );
 		VectorCopy( viewangles, oldangles );
 	}
+
+	QSI.CreateMove( cmd );
 
 }
 

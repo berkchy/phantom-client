@@ -19,6 +19,7 @@ FontOptions.cpp - ImGui menu font configuration
 #define FONT_INI_PATH		"fonts/font.ini"
 
 extern void UI_Main_LoadBrandFont();
+extern void UI_Main_ResetBrandFont();
 
 struct fontEntry_t
 {
@@ -256,6 +257,7 @@ void CMenuFontOptions::SaveCb()
 		Con_Printf( "ImGui: Font Options saved %s size=%.0f reload=%d\n", currentPath.Get(), currentSize, result );
 	}
 
+	UI_Main_ResetBrandFont();
 	UI_Main_LoadBrandFont();
 
 	SaveAndPopMenu();

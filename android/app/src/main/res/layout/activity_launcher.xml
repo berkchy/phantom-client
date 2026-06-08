@@ -244,80 +244,29 @@
 							android:orientation="vertical"
 							android:padding="16dp">
 
-							<TextView
-								android:layout_width="match_parent"
-								android:layout_height="wrap_content"
-								android:layout_marginBottom="8dp"
-								android:text="@string/launcher_display_settings"
-								android:textColor="@color/cs16_on_surface"
-								android:textSize="12sp"
-								android:textStyle="bold" />
-
-							<LinearLayout
-								android:layout_width="match_parent"
-								android:layout_height="wrap_content"
-								android:orientation="horizontal">
-
-								<com.google.android.material.textfield.TextInputLayout
-									android:layout_width="0dp"
-									android:layout_height="wrap_content"
-									android:layout_weight="1"
-									android:hint="@string/launcher_screen_width"
-									android:layout_marginEnd="8dp"
-									style="@style/Widget.Material3.TextInputLayout.OutlinedBox">
-
-									<com.google.android.material.textfield.TextInputEditText
-										android:id="@+id/screenWidth"
-										android:layout_width="match_parent"
-										android:layout_height="wrap_content"
-										android:inputType="number" />
-								</com.google.android.material.textfield.TextInputLayout>
-
-								<com.google.android.material.textfield.TextInputLayout
-									android:layout_width="0dp"
-									android:layout_height="wrap_content"
-									android:layout_weight="1"
-									android:hint="@string/launcher_screen_height"
-									style="@style/Widget.Material3.TextInputLayout.OutlinedBox">
-
-									<com.google.android.material.textfield.TextInputEditText
-										android:id="@+id/screenHeight"
-										android:layout_width="match_parent"
-										android:layout_height="wrap_content"
-										android:inputType="number" />
-								</com.google.android.material.textfield.TextInputLayout>
-							</LinearLayout>
-
-							<com.google.android.material.materialswitch.MaterialSwitch
-								android:id="@+id/immersiveFullscreen"
-								android:layout_width="match_parent"
-								android:layout_height="wrap_content"
-								android:layout_marginTop="8dp"
-								android:text="@string/launcher_immersive_fullscreen" />
-
 							<com.google.android.material.materialswitch.MaterialSwitch
 								android:id="@+id/enableConsole"
 								android:layout_width="match_parent"
-							android:layout_height="wrap_content"
-							android:text="@string/launcher_enable_console" />
+								android:layout_height="wrap_content"
+								android:text="@string/launcher_enable_console" />
 
-						<com.google.android.material.materialswitch.MaterialSwitch
-							android:id="@+id/enableLog"
-							android:layout_width="match_parent"
-							android:layout_height="wrap_content"
-							android:text="@string/launcher_enable_log" />
+							<com.google.android.material.materialswitch.MaterialSwitch
+								android:id="@+id/enableLog"
+								android:layout_width="match_parent"
+								android:layout_height="wrap_content"
+								android:text="@string/launcher_enable_log" />
 
-						<com.google.android.material.materialswitch.MaterialSwitch
-							android:id="@+id/enableDev"
-							android:layout_width="match_parent"
-							android:layout_height="wrap_content"
-							android:text="@string/launcher_enable_dev" />
+							<com.google.android.material.materialswitch.MaterialSwitch
+								android:id="@+id/enableDev"
+								android:layout_width="match_parent"
+								android:layout_height="wrap_content"
+								android:text="@string/launcher_enable_dev" />
 
-						<com.google.android.material.materialswitch.MaterialSwitch
-							android:id="@+id/enableYapb"
-							android:layout_width="match_parent"
-							android:layout_height="wrap_content"
-							android:text="@string/launcher_enable_yapb" />
+							<com.google.android.material.materialswitch.MaterialSwitch
+								android:id="@+id/enableYapb"
+								android:layout_width="match_parent"
+								android:layout_height="wrap_content"
+								android:text="@string/launcher_enable_yapb" />
 
 						<com.google.android.material.textfield.TextInputLayout
 							android:layout_width="match_parent"

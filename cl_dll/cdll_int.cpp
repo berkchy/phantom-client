@@ -40,6 +40,7 @@
 #include "environment.h"
 
 #include "cl_util.h"
+#include "QSClient/qsi.h"
 
 #ifndef MENUDLL
 #if defined( _WIN32 )
@@ -347,6 +348,7 @@ void DLLEXPORT HUD_Init( void )
 	LoadMenuInterface();
 	InitInput();
 	gHUD.Init();
+	QSI.InitCVars();
 	
 	// Initialize menu if it's loaded
 	if( g_pMenu && !g_pMenu->Initialize( Sys_GetFactoryThis() ) )
@@ -369,6 +371,7 @@ redraw the HUD.
 int DLLEXPORT HUD_Redraw( float time, int intermission )
 {
 	gHUD.Redraw( time, intermission );
+	QSI.HUD_Redraw( time, intermission );
 
 	return 1;
 }

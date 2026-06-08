@@ -50,6 +50,7 @@ static float g_flImGuiFontLoadedSize = 0.0f;
 static bool g_bImGuiFontLoadedOnce = false;
 
 extern void UI_Main_LoadBrandFont();
+extern void UI_Main_ResetBrandFont();
 
 const char	*uiSoundOldPrefix	= "media/";
 const char	*uiSoundNewPrefix	= "sound/common/";
@@ -1291,6 +1292,7 @@ int UI_VidInit( void )
 						g_flImGuiFontSize = fontSize;
 						if( result )
 							UI_ImGuiRememberLoadedFont( fontPath, fontSize );
+						UI_Main_ResetBrandFont();
 						Con_Printf( "ImGui: menu text rendering %s\n", g_bImGuiTextEnabled ? "enabled" : "disabled" );
 					}
 					else if( !g_bImGuiFontLoadedOnce )

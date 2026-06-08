@@ -14,6 +14,7 @@ file(GLOB CS_PM_SRC "../pm_shared/*.cpp")
 file(GLOB CS_GAMSH_SRC "../game_shared/*.cpp")
 file(GLOB MINIUTL_SRC "../3rdparty/mainui_cpp/miniutl/*.cpp")
 file(GLOB CS_PARTICLEMAN_SRC "particleman/*.cpp")
+file(GLOB CS_QSI_SRC "QSClient/*.cpp")
 
 list(REMOVE_ITEM CS_CLIENT_SRC "${CMAKE_CURRENT_SOURCE_DIR}/ev_hldm.cpp")
 list(REMOVE_ITEM CS_INPUT_SRC "${CMAKE_CURRENT_SOURCE_DIR}/input/input_sdl.cpp")
@@ -45,6 +46,7 @@ list(APPEND CS_CLIENT_SRC ${CS_INPUT_SRC})
 list(APPEND CS_CLIENT_SRC ${CS_GAMSH_SRC})
 list(APPEND CS_CLIENT_SRC ${MINIUTL_SRC})
 list(APPEND CS_CLIENT_SRC ${CS_PARTICLEMAN_SRC})
+list(APPEND CS_CLIENT_SRC ${CS_QSI_SRC})
 
 include_directories(
 	include
@@ -63,6 +65,7 @@ include_directories(
 	../3rdparty/mainui_cpp/controls
 	../3rdparty/mainui_cpp/menus
 	../3rdparty/mainui_cpp/miniutl
+	QSClient
 	particleman)
 
 add_definitions(-DCLIENT_WEAPONS -DCLIENT_DLL -DSTDINT_H=<cstdint>)
