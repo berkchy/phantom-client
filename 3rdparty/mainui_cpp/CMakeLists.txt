@@ -33,7 +33,6 @@ endif()
 
 if(WIN32)
 	add_definitions(-DMAINUI_USE_CUSTOM_FONT_RENDER)
-	add_definitions(-DMAINUI_USE_STB)
 endif()
 
 file(GLOB MAINUI_CONTROLS_SOURCES "controls/*.cpp")
